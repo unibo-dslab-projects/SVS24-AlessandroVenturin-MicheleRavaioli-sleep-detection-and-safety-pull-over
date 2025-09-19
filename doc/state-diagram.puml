@@ -8,14 +8,14 @@ state "Manual Driving" as ManualDriving
 ManualDriving ------> LaneKeeping : engages lane keeping
 
 state "Lane Keeping" as LaneKeeping {
-    [*] --> NoDrowsinessDetected
+    [*] --> NoInattentionDetected
 
-    state "No Drowsiness Detected" as NoDrowsinessDetected
-    NoDrowsinessDetected -r-> DrowsinessDetected : drowsiness detected
+    state "No Inattention Detected" as NoInattentionDetected
+    NoInattentionDetected -r-> InattentionDetected : inattention detected
 
-    state "Drowsiness Detected" as DrowsinessDetected
-    DrowsinessDetected -l-> NoDrowsinessDetected : no drowsiness detected
-    DrowsinessDetected -r-> PullOverPrep : after X seconds
+    state "Inattention Detected" as InattentionDetected
+    InattentionDetected -l-> NoInattentionDetected : no inattention detected
+    InattentionDetected -r-> PullOverPrep : after X seconds
 
     state "Pull Over Preparation" as PullOverPrep
     PullOverPrep --> PullingOver : pulling over is safe
