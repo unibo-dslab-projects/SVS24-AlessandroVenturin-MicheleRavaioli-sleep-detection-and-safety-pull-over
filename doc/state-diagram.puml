@@ -9,22 +9,34 @@ ManualDriving ------> LaneKeeping : engages lane keeping
 
 state "Lane Keeping" as LaneKeeping {
     [*] --> NoDrowsinessDetected
-    
+
     state "No Drowsiness Detected" as NoDrowsinessDetected
     NoDrowsinessDetected -r-> DrowsinessDetected : drowsiness detected
 
     state "Drowsiness Detected" as DrowsinessDetected
     DrowsinessDetected -l-> NoDrowsinessDetected : no drowsiness detected
-    DrowsinessDetected -r-> SearchPullOverSpot : after X seconds
+    DrowsinessDetected -r-> PullOverPrep : after X seconds
 
-    state "Search Pull Over Spot" as SearchPullOverSpot
-    SearchPullOverSpot --> PullingOver
+    state "Pull Over Preparation" as PullOverPrep
+    PullOverPrep --> PullingOver : pulling over is safe
+    PullOverPrep : do / slow down to a minimum of X km/h
+    PullOverPrep : do / check pull over safety
 }
 LaneKeeping ---> ManualDriving : disengage lane keeping
 
-state "Pulling Over" as PullingOver
-PullingOver --> Stopped
+state "Pulling Over" as PullingOver {
+    [*] --> EmergencyLaneNotReached
+    state "Emergency Lane Not Reached" as EmergencyLaneNotReached
+    EmergencyLaneNotReached : do / slow down to a minimum of X km/h (example: 10 km/h)
+    EmergencyLaneNotReached : do / pull over to the emergency lane
 
+    EmergencyLaneNotReached --> EmergencyLaneReached : emergency lane reached
+
+    state "Emergency Lane Reached" as EmergencyLaneReached
+    EmergencyLaneReached --> Stopped : [speed == 0]
+    EmergencyLaneReached : do / slow down
+}
+PullingOver -u-> ManualDriving : manual driving button pressed
 state Stopped
 
 @enduml
