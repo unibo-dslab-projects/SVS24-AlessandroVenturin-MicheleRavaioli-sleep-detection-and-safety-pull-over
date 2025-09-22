@@ -40,7 +40,7 @@ class ManualState(CarState):
     def transitions(self) -> list[CarTransition]:
         return [
             CarTransition(
-                to=lambda: LaneKeepingState(),
+                to=LaneKeepingState(),
                 condition=lambda data, ctx: data.speed > 50,
             )
         ]
@@ -59,7 +59,7 @@ class LaneKeepingState(CarState):
     def transitions(self) -> list[CarTransition]:
         return [
             CarTransition(
-                to=lambda: PullingOverState(),
+                to=PullingOverState(),
                 condition=lambda data, ctx: data.speed > 55,
                 action=lambda data, ctx: print("WARNING: pulling over"),
             )
@@ -79,7 +79,7 @@ class PullingOverState(CarState):
     def transitions(self) -> list[CarTransition]:
         return [
             CarTransition(
-                to=lambda: StoppedState(),
+                to=StoppedState(),
                 condition=lambda data, ctx: data.speed <= 0,
             )
         ]
@@ -136,7 +136,7 @@ class CarTurnedOffState(CarState):
     def transitions(self) -> list[CarTransition]:
         return [
             CarTransition(
-                to=lambda: CarTurnedOnState(),
+                to=CarTurnedOnState(),
                 condition=lambda data, ctx: ctx.timer(CarTimers.TURN_ON).is_elapsed(),
             )
         ]

@@ -12,14 +12,6 @@ class Condition[Data, Timers](Protocol):
     def __call__(self, data: Data, ctx: Context[Timers]) -> bool: ...
 
 
-class MakeNextState[Data, Timers](Protocol):
-    """
-    A function that creates the state to transition to
-    """
-
-    def __call__(self) -> State[Data, Timers]: ...
-
-
 class Action[Data, Timers](Protocol):
     """
     A function that modifies the data when executed
@@ -35,23 +27,23 @@ class Transition[Data, Timers]:
 
     condition: Condition[Data, Timers]
 
-    make_next_state: MakeNextState[Data, Timers]
+    next_state: State[Data, Timers]
 
     action: Action[Data, Timers]
 
     def __init__(
         self,
-        to: MakeNextState[Data, Timers],
+        to: State[Data, Timers],
         condition: Condition[Data, Timers] = lambda data, ctx: True,
         action: Action[Data, Timers] = lambda data, ctx: None,
     ):
         """
         Args:
-            to: a function creating the next state
+            to: the state to transition to
             condition: condition what when evaluated to true will trigger the transition
             action: action to be executed once the transition is triggered
         """
-        self.make_next_state = to
+        self.next_state = to
         self.condition = condition
         self.action = action
 
@@ -80,6 +72,12 @@ class StateAction[Data, Timers]:
 
 
 class State[Data, Timers](ABC):
+    """
+    Description of a state machine state.
+    This is just a description of a state and therefore instances should not
+    hold any data/state (to do so use the Data type parameter)
+    """
+
     def parent(self) -> State[Data, Timers] | None:
         """
         The parent state of this state (if present)
@@ -302,8 +300,7 @@ class SyncStateMachine[Data, Timers](ABC):
             None,
         )
         if transition is not None:
-            next_state = transition.make_next_state()
-            next_state = _lowest_entry_child(next_state)
+            next_state = _lowest_entry_child(transition.next_state)
             lca = _lowest_common_ancestor(self._state, next_state)
 
             # exit from state and from all ancestors up to the lowest common ancestor
