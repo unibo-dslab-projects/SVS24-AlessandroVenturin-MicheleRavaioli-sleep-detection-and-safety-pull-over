@@ -5,18 +5,34 @@ from typing import Protocol, cast, final, override
 
 
 class Condition[Data, Timers](Protocol):
+    """
+    A function that evaluates to a boolean value
+    """
+
     def __call__(self, data: Data, ctx: Context[Timers]) -> bool: ...
 
 
 class MakeNextState[Data, Timers](Protocol):
+    """
+    A function that creates the state to transition to
+    """
+
     def __call__(self) -> State[Data, Timers]: ...
 
 
 class Action[Data, Timers](Protocol):
+    """
+    A function that modifies the data when executed
+    """
+
     def __call__(self, data: Data, ctx: Context[Timers]): ...
 
 
 class Transition[Data, Timers]:
+    """
+    A transition to another state, it can be guarded by a condition and it can also perform an action once triggered
+    """
+
     condition: Condition[Data, Timers]
 
     make_next_state: MakeNextState[Data, Timers]
@@ -29,6 +45,12 @@ class Transition[Data, Timers]:
         condition: Condition[Data, Timers] = lambda data, ctx: True,
         action: Action[Data, Timers] = lambda data, ctx: None,
     ):
+        """
+        Args:
+            to: a function creating the next state
+            condition: condition what when evaluated to true will trigger the transition
+            action: action to be executed once the transition is triggered
+        """
         self.make_next_state = to
         self.condition = condition
         self.action = action
@@ -36,25 +58,47 @@ class Transition[Data, Timers]:
 
 class State[Data, Timers](ABC):
     def parent(self) -> State[Data, Timers] | None:
+        """
+        The parent state of this state (if present)
+        """
         return None
 
     def entry_child(self) -> State[Data, Timers] | None:
+        """
+        If this state is the parent of at least one other state it should then
+        override this function to return the child to enter to on this state entry
+        """
         return None
 
     def on_entry(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
+        """
+        Callback that is executed every time this state becomes active
+        """
         ...
 
     def on_do(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
+        """
+        Callback that is executed on every step of the state machine while this state is active
+        """
         ...
 
     def on_exit(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
+        """
+        Callback that is executed every time this state becomes inactive
+        """
         ...
 
     def transitions(self) -> Sequence[Transition[Data, Timers]]:
+        """
+        The transitions that originates from this state
+        """
         return list()
 
     @final
     def ancestors(self) -> list[State[Data, Timers]]:
+        """
+        The ancestors of this state in order from closest to furthest
+        """
         return _ancestors_rec(self, [])
 
     # Equality just checks the type
@@ -72,6 +116,9 @@ class State[Data, Timers](ABC):
 def _ancestors_rec[D, T](
     child: State[D, T], acc: list[State[D, T]]
 ) -> list[State[D, T]]:
+    """
+    Recursively computes the ancestors of a state
+    """
     match child.parent():
         case None:
             return acc
@@ -82,6 +129,9 @@ def _ancestors_rec[D, T](
 def _lowest_common_ancestor[D, T](
     s1: State[D, T], s2: State[D, T]
 ) -> State[D, T] | None:
+    """
+    Computes the lowest common ancestor between two states
+    """
     ancestors_2 = set(s2.ancestors())
     for p1 in s1.ancestors():
         if ancestors_2.__contains__(p1):
@@ -89,6 +139,9 @@ def _lowest_common_ancestor[D, T](
 
 
 def _lowest_entry_child[D, T](s: State[D, T]) -> State[D, T]:
+    """
+    Given a state it follows it's entry child down to the innermost
+    """
     entry_child = s.entry_child()
     if entry_child is None:
         return s
@@ -97,14 +150,24 @@ def _lowest_entry_child[D, T](s: State[D, T]) -> State[D, T]:
 
 
 class Context[Timers]:
+    """
+    Context of a state machine, it carries the delta time between steps and all the defined timers
+    """
+
     _dt: float
     _timers: dict[Timers, Timer] = {}
 
     @property
     def dt(self):
+        """
+        Amount of time (seconds) elapsed between the previous step and the current one
+        """
         return self._dt
 
     def timer(self, timer: Timers) -> Timer:
+        """
+        Returns the requested timer
+        """
         t = self._timers.get(timer)
         match t:
             case None:
@@ -114,6 +177,9 @@ class Context[Timers]:
                 return t
 
     def _step(self, dt: float):
+        """
+        Sets the delta time and updates all timers
+        """
         self._dt = dt
         for t in self._timers.values():
             t.step(self._dt)
@@ -123,11 +189,42 @@ class Context[Timers]:
 
 
 class SyncStateMachine[Data, Timers](ABC):
+    """
+    The state machine lifecycle is the following:
+        1. The state machine (when initialized) starts in the initial state with dt=0 and triggers on_entry callbacks
+        2. Once for every step:
+            2a. Evaluates all the transition conditions of the active state (stopping at the first evaluating to True)
+            2b. Performs the transition if one is triggered:
+                2ba. Triggers the on_exit callbacks for the exiting state
+                2bb. Executes the transition action (if defined)
+                2bc. Sets the current state as the one defined by the transition
+                2bd. Triggers the on_entry callbacks for the entering state
+            2c. Triggers on_do callbacks
+
+    Concepts to take into consideration:
+        1. When entering a state the machine will call on_entry on every one of its ancestors
+           from the outermost to the innermost and then on the state itself.
+           When transitioning between two states the on_entry is called starting by the lowest
+           common ancestor.
+        2. During each step the on_do callback will be called for each of the active state
+           ancestors from the outermost to the innermost an then for the active state itself.
+        2. When exiting a state the machine will call on_exit on the state itself and then on
+           every one of its ancestors from the innermost to the outermost.
+           When transitioning between two state the on_exit is called up to the lowest common
+           ancestor (excluded).
+    """
+
     _state: State[Data, Timers]
     _data: Data
     _context: Context[Timers]
 
     def __init__(self, state: State[Data, Timers], data: Data):
+        """
+        Starts a state machine.
+        Args:
+            state: the initial state
+            data: the initial data
+        """
         self._state = _lowest_entry_child(state)
         self._data = data
         self._context = Context(0)
@@ -136,11 +233,18 @@ class SyncStateMachine[Data, Timers](ABC):
         )
 
     def _entry_states(self, states: list[State[Data, Timers]], ctx: Context[Timers]):
+        """
+        Enters (calling on_entry) all the given states in the same order they are provided
+        """
         for s in states:
             s.on_entry(self._data, ctx)
 
     @final
     def step(self, dt: float):
+        """
+        Advances the state machine by dt seconds
+
+        """
         self._context._step(dt)  # pyright: ignore[reportPrivateUsage]
         transition = next(
             (
@@ -189,6 +293,9 @@ class Timer:
         self.reset(time_set)
 
     def reset(self, time_set: float | None = None):
+        """
+        Resets the timer to time_set or, if None is provided, to the previous time set
+        """
         match time_set:
             case None:
                 self._time_left = self._time_set
@@ -196,8 +303,14 @@ class Timer:
                 self._time_left = time_set
 
     def step(self, dt: float):
+        """
+        Advances the timer of dt seconds
+        """
         if not self.is_elapsed():
             self._time_left = self._time_left - dt
 
     def is_elapsed(self) -> bool:
+        """
+        Evaluates to true if the timer has reached 0
+        """
         return self._time_left <= 0
