@@ -13,7 +13,7 @@ class CarData:
 class ManualState(State[CarData]):
     @override
     def parent(self) -> State[CarData] | None:
-        return CarTurnerOnState()
+        return CarTurnedOnState()
 
     @override
     def on_do(self, dt: float, data: CarData) -> CarData:
@@ -33,7 +33,7 @@ class ManualState(State[CarData]):
 class LaneKeepingState(State[CarData]):
     @override
     def parent(self) -> State[CarData] | None:
-        return CarTurnerOnState()
+        return CarTurnedOnState()
 
     @override
     def on_do(self, dt: float, data: CarData) -> CarData:
@@ -54,7 +54,7 @@ class LaneKeepingState(State[CarData]):
 class PullingOverState(State[CarData]):
     @override
     def parent(self) -> State[CarData] | None:
-        return CarTurnerOnState()
+        return CarTurnedOnState()
 
     @override
     def on_do(self, dt: float, data: CarData) -> CarData:
@@ -74,7 +74,7 @@ class PullingOverState(State[CarData]):
 class StoppedState(State[CarData]):
     @override
     def parent(self) -> State[CarData] | None:
-        return CarTurnerOnState()
+        return CarTurnedOnState()
 
     @override
     def on_entry(self, dt: float, data: CarData) -> CarData:
@@ -82,7 +82,7 @@ class StoppedState(State[CarData]):
         return data
 
 
-class CarTurnerOnState(State[CarData]):
+class CarTurnedOnState(State[CarData]):
     @override
     def parent(self) -> State[CarData] | None:
         return IAmACarState()
