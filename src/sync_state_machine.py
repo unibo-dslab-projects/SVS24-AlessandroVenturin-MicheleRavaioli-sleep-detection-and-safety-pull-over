@@ -90,7 +90,6 @@ def _lowest_entry_child[D](s: State[D]) -> State[D]:
     else:
         return _lowest_entry_child(entry_child)
 
-
 class SyncStateMachine[Data](ABC):
     __state: State[Data]
     __data: Data
@@ -142,3 +141,25 @@ class SyncStateMachine[Data](ABC):
             self.__data = p.on_do(dt, self.__data)
         self.__data = self.__state.on_do(dt, self.__data)
         return self.__data
+
+class Timer:
+    _time_set: float
+    _time_left: float
+
+    def __init__(self, time_set: float = 0):
+        self._time_set = time_set
+        self.reset(time_set)
+
+    def reset(self, time_set: float | None = None):
+        match time_set:
+            case None:
+                self._time_left = self._time_set
+            case time_set:
+                self._time_left = time_set
+
+    def step(self, dt: float):
+        if not self.is_elapsed():
+            self._time_left = self._time_left - dt
+
+    def is_elapsed(self) -> bool:
+        return self._time_left <= 0
