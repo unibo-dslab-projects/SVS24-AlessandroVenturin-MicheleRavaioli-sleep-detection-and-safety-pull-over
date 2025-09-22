@@ -123,67 +123,67 @@ class Context[Timers]:
 
 
 class SyncStateMachine[Data, Timers](ABC):
-    __state: State[Data, Timers]
-    __data: Data
-    __context: Context[Timers]
+    _state: State[Data, Timers]
+    _data: Data
+    _context: Context[Timers]
 
     def __init__(self, state: State[Data, Timers], data: Data):
-        self.__state = _lowest_entry_child(state)
-        self.__data = data
-        self.__context = Context(0)
-        self.__data = self.__entry_states(
-            list(reversed(self.__state.ancestors())) + [self.__state], self.__context
+        self._state = _lowest_entry_child(state)
+        self._data = data
+        self._context = Context(0)
+        self._data = self._entry_states(
+            list(reversed(self._state.ancestors())) + [self._state], self._context
         )
 
-    def __entry_states(
+    def _entry_states(
         self, states: list[State[Data, Timers]], ctx: Context[Timers]
     ) -> Data:
         for s in states:
-            self.__data = s.on_entry(self.__data, ctx)
-        return self.__data
+            self._data = s.on_entry(self._data, ctx)
+        return self._data
 
     @final
     def step(self, dt: float) -> Data:
-        self.__context._step(dt)  # pyright: ignore[reportPrivateUsage]
+        self._context._step(dt)  # pyright: ignore[reportPrivateUsage]
         transition = next(
             (
                 t
-                for t in self.__state.transitions()
-                if t.condition(self.__data, self.__context)
+                for t in self._state.transitions()
+                if t.condition(self._data, self._context)
             ),
             None,
         )
         if transition is not None:
             next_state = transition.make_next_state()
             next_state = _lowest_entry_child(next_state)
-            lca = _lowest_common_ancestor(self.__state, next_state)
+            lca = _lowest_common_ancestor(self._state, next_state)
 
             # exit from state and from all ancestors up to the lowest common ancestor
-            self.__data = self.__state.on_exit(self.__data, self.__context)
-            for p in self.__state.ancestors():
+            self._data = self._state.on_exit(self._data, self._context)
+            for p in self._state.ancestors():
                 if lca is None or lca == p:
                     break
                 else:
-                    self.__data = lca.on_exit(self.__data, self.__context)
+                    self._data = lca.on_exit(self._data, self._context)
 
-            self.__data = transition.action(self.__data, self.__context)
-            self.__state = next_state
+            self._data = transition.action(self._data, self._context)
+            self._state = next_state
 
             # entry into all ancestors down from the lowest common ancestor and then into state
-            reversed_ancestors = list(reversed(self.__state.ancestors()))
+            reversed_ancestors = list(reversed(self._state.ancestors()))
             if lca is not None:
                 # removing lca and outer ancestor
                 while reversed_ancestors.pop(0) != lca:
                     ...
-            self.__data = self.__entry_states(
-                reversed_ancestors + [self.__state], self.__context
+            self._data = self._entry_states(
+                reversed_ancestors + [self._state], self._context
             )
 
         # on_do for all ancestors down from the lowest common ancestor and then into state
-        for p in list(reversed(self.__state.ancestors())):
-            self.__data = p.on_do(self.__data, self.__context)
-        self.__data = self.__state.on_do(self.__data, self.__context)
-        return self.__data
+        for p in list(reversed(self._state.ancestors())):
+            self._data = p.on_do(self._data, self._context)
+        self._data = self._state.on_do(self._data, self._context)
+        return self._data
 
 
 class Timer:
