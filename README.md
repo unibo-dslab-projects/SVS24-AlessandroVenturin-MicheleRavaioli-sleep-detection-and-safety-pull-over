@@ -20,8 +20,8 @@ The vehicle’s cruise control system is designed to operate only in the slowest
 ### Virtual environment
 
 ```sh
-conda create -p .venv python=3.12
-conda activate .venv
+conda create -p ./.venv python=3.12
+conda activate ./.venv
 ```
 
 ### Requirements
