@@ -97,9 +97,22 @@ class State[Data, Timers](ABC):
         """
         ...
 
+    def on_early_do(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
+        """
+        Callback that is executed on every step of the state machine while this state is active (before on_do)
+        """
+        ...
+
+        ...
     def on_do(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
         """
         Callback that is executed on every step of the state machine while this state is active
+        """
+        ...
+
+    def on_late_do(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
+        """
+        Callback that is executed on every step of the state machine while this state is active (after on_do)
         """
         ...
 
@@ -194,25 +207,32 @@ class SyncStateMachine[Data, Timers](ABC):
                 2bb. Executes the transition action (if defined)
                 2bc. Sets the current state as the one defined by the transition
                 2bd. Triggers the on_entry callbacks for the entering state
-            2c. Executes all the active state actions which conditions are satisfied
+            2c. For each ancestor of the active state and for the active state itself
+                2db. Triggers on_early_do callbacks
             2d. For each ancestor of the active state and for the active state itself
                 2da. Check and execute state actions
                 2db. Triggers on_do callbacks
+            2e. For each ancestor of the active state and for the active state itself
+                2ea. Triggers on_late_do callbacks
 
     Concepts to take into consideration:
         1. When entering a state the machine will call on_entry on every one of its ancestors
            from the outermost to the innermost and then on the state itself.
            When transitioning between two states the on_entry is called starting by the lowest
            common ancestor.
-        2. During each step the on_do callback and any eventual state action will be called for
-           each of the active state ancestors from the outermost to the innermost an then for
-           the active state itself.
+        2. During each step the on_early_do/on_do/on_late_do callback and any eventual states
+           action will be called for each of the active state ancestors from the outermost to
+           the innermost an then for the active state itself.
            Example:
                State A is an ancestor of state B
-               1. execute actions of state A
-               2. trigger on_do for state A
-               3. execute actions of state B
-               4. trigger on_do for state B
+               1. trigger on_early_do for state A
+               2. trigger on_early_do for state B
+               3. execute actions of state A
+               4. trigger on_do for state A
+               5. execute actions of state B
+               6. trigger on_do for state B
+               7. trigger on_late_do for state A
+               8. trigger on_late_do for state B
         3. When exiting a state the machine will call on_exit on the state itself and then on
            every one of its ancestors from the innermost to the outermost.
            When transitioning between two state the on_exit is called up to the lowest common
@@ -343,13 +363,23 @@ class SyncStateMachine[Data, Timers](ABC):
                     ...
             self._entry_states(reversed_ancestors + [self._state], self._context)
 
+        reversed_ancestors_and_self = list(reversed(self._ancestors[self._state])) + [self._state]
+
+        # on_early_do for all ancestors down from the lowest common ancestor and then into state
+        for p in reversed_ancestors_and_self:
+            p.on_early_do(self._data, self._context)
+
         # on_do and state actions for all ancestors down from the lowest common ancestor and then into state
-        for p in list(reversed(self._ancestors[self._state])):
+        for p in reversed_ancestors_and_self:
             for a in p.actions():
                 if a.condition(self._data, self._context):
                     a.action(self._data, self._context)
             p.on_do(self._data, self._context)
-        self._state.on_do(self._data, self._context)
+
+        # on_late_do for all ancestors down from the lowest common ancestor and then into state
+        for p in reversed_ancestors_and_self:
+            p.on_late_do(self._data, self._context)
+
 
 
 class Timer:
