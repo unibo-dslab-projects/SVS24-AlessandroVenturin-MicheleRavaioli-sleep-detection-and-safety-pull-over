@@ -3,7 +3,13 @@ from typing import override
 
 from carla import Vector3D, Vehicle, VehicleControl
 
-from sync_state_machine import Context, State, StateAction, SyncStateMachine, Transition
+from state_machine.sync_state_machine import (
+    Context,
+    State,
+    StateAction,
+    SyncStateMachine,
+    Transition,
+)
 
 
 class VehicleData:

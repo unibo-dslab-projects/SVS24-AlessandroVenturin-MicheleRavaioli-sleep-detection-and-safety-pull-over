@@ -3,7 +3,7 @@ import carla
 from typing import cast, override
 from carla import Vehicle, Vector3D, VehicleControl
 from remove_vehicles_and_sensors import remove_vehicles_and_sensors
-from sync_state_machine import State, StateAction, Context, SyncStateMachine, Transition
+from state_machine.sync_state_machine import State, StateAction, Context, SyncStateMachine, Transition
 
 framerate = 60
 dt = 1 / framerate

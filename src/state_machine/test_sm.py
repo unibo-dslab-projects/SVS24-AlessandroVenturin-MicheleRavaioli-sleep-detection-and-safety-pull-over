@@ -1,7 +1,7 @@
 from enum import StrEnum, auto
 from time import sleep
 from typing import override
-from sync_state_machine import Context, State, StateAction, SyncStateMachine, Transition
+from state_machine.sync_state_machine import Context, State, StateAction, SyncStateMachine, Transition
 
 
 class CarTimers(StrEnum):
