@@ -143,6 +143,12 @@ class PullOverPreparationS(VehicleState):
             )
         ]
 
+    @override
+    def on_do(self, data: VehicleData, ctx: VehicleContext):
+        # TODO: choose appropriate speed and braking power
+        if data.speed.length() > 50 / 3.6:
+            data.vehicle_control.brake = 0.2
+
 
 # ========== PULLING_OVER ==========
 
@@ -158,6 +164,54 @@ class PullingOverS(VehicleState):
         ]
 
 
+def _emergency_lane_reached(data: VehicleData) -> bool:
+    # TODO
+    return True
+
+
+class EmergencyLaneNotReachedS(VehicleState):
+    @override
+    def transitions(self) -> list[VehicleTransition]:
+        return [
+            VehicleTransition(
+                to=EmergencyLaneReachedS(),
+                condition=lambda data, ctx: _emergency_lane_reached(data),
+            )
+        ]
+
+    @override
+    def on_do(self, data: VehicleData, ctx: VehicleContext):
+        # TODO: choose appropriate speed and braking power
+        if data.speed.length() > 10 / 3.6:
+            data.vehicle_control.brake = 0.2
+        # TODO: activate turn signals
+        # TODO: amount of steering should be adjusted based on:
+        #       - vehicle speed
+        #       - how fast the vehicle is approaching the guardrail
+        data.vehicle_control.steer = 0.1
+
+
+class EmergencyLaneReachedS(VehicleState):
+    @override
+    def transitions(self) -> list[VehicleTransition]:
+        return [
+            VehicleTransition(
+                to=StoppedS(),
+                condition=lambda data, ctx: data.speed.length() <= 0,
+            )
+        ]
+
+    @override
+    def on_do(self, data: VehicleData, ctx: VehicleContext):
+        # TODO: choose appropriate braking power
+        data.vehicle_control.brake = 0.2
+
+        # TODO: maybe it would be good to continue adjusting the
+        #       steering in order not to exit the emergency lane
+        #       or hit the guardrail (especially when pulling over
+        #       when the road is turning
+
+
 # ========== STOPPED ==========
 
 
@@ -170,3 +224,8 @@ class StoppedS(VehicleState):
                 condition=lambda data, ctx: data.should_enter_manual_driving,
             )
         ]
+
+    @override
+    def on_entry(self, data: VehicleData, ctx: VehicleContext):
+        # TODO: activate emergency signals
+        ...
