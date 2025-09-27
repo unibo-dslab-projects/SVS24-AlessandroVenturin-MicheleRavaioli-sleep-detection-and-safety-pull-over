@@ -29,12 +29,9 @@ blueprint_lib = world.get_blueprint_library()
 vehicle_bp = blueprint_lib.filter("vehicle.*")[0]
 vehicle_spawn_point = world.get_map().get_spawn_points()[0]
 camera_bp = blueprint_lib.find("sensor.camera.rgb")
-
-# Get camera dimensions
 image_w = camera_bp.get_attribute("image_size_x").as_int()
 image_h = camera_bp.get_attribute("image_size_y").as_int()
 
-# Instantiate objects for rendering and vehicle control
 io = PygameIO(image_w, image_h)
 
 try:
