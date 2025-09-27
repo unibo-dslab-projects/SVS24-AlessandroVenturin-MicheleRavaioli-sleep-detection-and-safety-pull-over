@@ -179,6 +179,10 @@ class PullOverPreparationS(VehicleState):
 
 class PullingOverS(VehicleState):
     @override
+    def children(self) -> list[VehicleState]:
+        return [EmergencyLaneNotReachedS(), EmergencyLaneReachedS()]
+
+    @override
     def transitions(self) -> list[VehicleTransition]:
         return [
             VehicleTransition(
