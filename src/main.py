@@ -49,6 +49,7 @@ try:
     camera_init_trans = Transform(Location(x=-5, z=3), Rotation(pitch=-20))
     camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
 
+    # Spawn camera and attach it to the vehicle
     camera = cast(
         Sensor, world.spawn_actor(camera_bp, camera_init_trans, attach_to=vehicle)
     )
