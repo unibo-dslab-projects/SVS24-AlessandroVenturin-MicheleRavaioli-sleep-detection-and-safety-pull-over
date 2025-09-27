@@ -4,7 +4,7 @@ from typing import cast
 
 import numpy as np
 import pygame
-from carla import Client, Location, Rotation, Sensor, Transform, Vehicle
+from carla import Client, Image, Location, Rotation, Sensor, Transform, Vehicle
 
 from remove_vehicles_and_sensors import remove_vehicles_and_sensors
 from vehicle_state_machine import VehicleStateMachine
@@ -28,7 +28,7 @@ class IO:
         _ = self._game_display.blit(self._surface, (0, 0))
         pygame.display.flip()
 
-    def prepare_output_image(self, data):
+    def prepare_output_image(self, data: Image):
         """
         Sets the image to be rendered on the next call to update
         """
@@ -36,7 +36,7 @@ class IO:
         img = np.reshape(np.copy(data.raw_data), (data.height, data.width, 4))
         img = img[:, :, :3]
         img = img[:, :, ::-1]
-        self._surface = pygame.surfarray.make_surface(img.swapaxes(0, 1))
+        self._surface = pygame.surfarray.make_surface(img.swapaxes(0, 1))  # pyright: ignore[reportUnknownMemberType]
 
     def update(self) -> list[pygame.event.Event]:
         """
@@ -96,7 +96,7 @@ try:
     camera = cast(
         Sensor, world.spawn_actor(camera_bp, camera_init_trans, attach_to=vehicle)
     )
-    camera.listen(lambda image: io.prepare_output_image(image))
+    camera.listen(lambda image: io.prepare_output_image(cast(Image, image)))
     state_machine = VehicleStateMachine(vehicle, enable_logging=True)
     should_exit = False
     while not should_exit:
