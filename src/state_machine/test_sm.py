@@ -155,7 +155,8 @@ class VehicleSM(SyncStateMachine[CarData, CarTimers]):
 if __name__ == "__main__":
     data = CarData(speed=30)
     vehicle = VehicleSM(data)
+    should_continue = True
     while True:
         sleep(0.1)
-        vehicle.step(0.1)
+        should_continue = vehicle.step(0.1)
         print(data.speed)
