@@ -104,6 +104,7 @@ class State[Data, Timers](ABC):
         ...
 
         ...
+
     def on_do(self, data: Data, ctx: Context[Timers]):  # pyright: ignore[reportUnusedParameter]
         """
         Callback that is executed on every step of the state machine while this state is active
@@ -147,6 +148,7 @@ class State[Data, Timers](ABC):
     @override
     def __hash__(self) -> int:
         return hash(type(self))
+
 
 def _lowest_entry_child[D, T](s: State[D, T]) -> State[D, T]:
     """
@@ -262,6 +264,13 @@ class SyncStateMachine[Data, Timers](ABC):
     States without ancestors are associated to an empty list, so that it is save to call
     _ancestors[key] and assume you'll never get None
     """
+    _ancestors_reversed: dict[State[Data, Timers], list[State[Data, Timers]]] = {}
+    """
+    Dictionary associating states with a list of their ancestors going from the outside
+    to the inside.
+    States without ancestors are associated to an empty list, so that it is save to call
+    _ancestors[key] and assume you'll never get None
+    """
     _state: State[Data, Timers]
     _data: Data
     _context: Context[Timers]
@@ -297,6 +306,7 @@ class SyncStateMachine[Data, Timers](ABC):
         for s in top_level_states:
             if acc.get(s) is None:
                 acc[s] = ancestors_rec(s, [])
+                self._ancestors_reversed[s] = list(reversed(acc[s]))
                 self._build_ancestors_dict(s.children(), acc)
 
     def _lowest_common_ancestor(
@@ -309,7 +319,6 @@ class SyncStateMachine[Data, Timers](ABC):
         for p1 in self._ancestors[s1]:
             if ancestors_2.__contains__(p1):
                 return p1
-
 
     def __init__(self, top_level_states: Sequence[State[Data, Timers]], data: Data):
         """
@@ -324,7 +333,7 @@ class SyncStateMachine[Data, Timers](ABC):
         self._data = data
         self._context = Context(0)
         self._entry_states(
-            list(reversed(self._ancestors[self._state])) + [self._state],
+            self._ancestors_reversed[self._state] + [self._state],
             self._context,
         )
 
@@ -343,7 +352,7 @@ class SyncStateMachine[Data, Timers](ABC):
             False -> if the state machine is exited
         """
         self._context._step(dt)  # pyright: ignore[reportPrivateUsage]
-        reversed_ancestors = list(reversed(self._ancestors[self._state]))
+        reversed_ancestors = list(self._ancestors_reversed[self._state])
         reversed_ancestors_and_self = reversed_ancestors + [self._state]
         if self._state.is_exit_state():
             print("WARNING: step was called on an already exited state machine")
@@ -374,11 +383,12 @@ class SyncStateMachine[Data, Timers](ABC):
             self._state = next_state
 
             # entry into all ancestors down from the lowest common ancestor and then into state
+            ancestors_to_be_entered = list(reversed_ancestors)
             if lca is not None:
                 # removing lca and outer ancestor
-                while reversed_ancestors.pop(0) != lca:
+                while ancestors_to_be_entered.pop(0) != lca:
                     ...
-            self._entry_states(reversed_ancestors + [self._state], self._context)
+            self._entry_states(ancestors_to_be_entered + [self._state], self._context)
 
         if self._state.is_exit_state():
             return False
@@ -399,6 +409,7 @@ class SyncStateMachine[Data, Timers](ABC):
                 p.on_late_do(self._data, self._context)
 
             return True
+
 
 class Timer:
     _time_set: float
