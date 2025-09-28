@@ -1,8 +1,14 @@
 from collections.abc import Sequence
+from enum import StrEnum, auto
 from typing import cast, final
 
 import pygame
 from carla import Vehicle, VehicleControl
+
+
+class Direction(StrEnum):
+    FORWARD = auto()
+    BACKWARD = auto()
 
 
 @final
@@ -15,9 +21,8 @@ class PygameVehicleControl:
         # Conrol parameters to store the control state
         self._vehicle = vehicle
         self._steer = 0
-        self._throttle = False
-        self._brake = False
-        self._reverse = False
+        self._forward = False
+        self._backward = False
         self._steer = None
         self._steer_cache = 0
         self._control = VehicleControl()
@@ -28,9 +33,9 @@ class PygameVehicleControl:
             if event.type == pygame.KEYDOWN:
                 key = cast(int, event.key)
                 if key == pygame.K_UP:
-                    self._throttle = True
+                    self._forward = True
                 if key == pygame.K_DOWN:
-                    self._brake = True
+                    self._backward = True
                 if key == pygame.K_RIGHT:
                     self._steer = 1
                 if key == pygame.K_LEFT:
@@ -38,39 +43,46 @@ class PygameVehicleControl:
             if event.type == pygame.KEYUP:
                 key = cast(int, event.key)
                 if key == pygame.K_UP:
-                    self._throttle = False
+                    self._forward = False
                 if key == pygame.K_DOWN:
-                    self._brake = False
-                    self._reverse = False
+                    self._backward = False
                 if key == pygame.K_RIGHT:
                     self._steer = None
                 if key == pygame.K_LEFT:
                     self._steer = None
 
-        # Compute vehicle control
-        if self._throttle:
-            self._control.throttle = min(self._control.throttle + 0.01, 1)
-            self._control.gear = 1
-            self._control.brake = False
-        elif not self._brake:
-            self._control.throttle = 0.0
-
-        if self._brake:
-            # If the down arrow is held down when the car is stationary, switch to reverse
-            velocity = self._vehicle.get_velocity().length()
-            reverse = self._vehicle.get_control().reverse
-            if velocity < 0.01 and not reverse:
-                self._control.brake = 0.0
-                self._control.gear = 1
-                self._control.reverse = True
-                self._control.throttle = min(self._control.throttle + 0.1, 1)
-            elif self._control.reverse:
-                self._control.throttle = min(self._control.throttle + 0.1, 1)
+        velocity = self._vehicle.get_velocity()
+        direction = None
+        if velocity.length() > 0.1:
+            # dot > 0 if vehicle is going forward
+            # dot < 0 otherwise
+            dot = velocity.dot(self._vehicle.get_transform().get_forward_vector())
+            if dot > 0:
+                direction = Direction.FORWARD
             else:
-                self._control.throttle = 0.0
-                self._control.brake = min(self._control.brake + 0.3, 1)
-        else:
-            self._control.brake = 0.0
+                direction = Direction.BACKWARD
+
+        # Reset controls
+        self._control.brake = 0
+        self._control.throttle = 0
+
+        match direction:
+            case None:
+                if self._forward:
+                    self._control.reverse = False
+                if self._backward:
+                    self._control.reverse = True
+                self._control.throttle = 1 if self._forward or self._backward else 0
+            case Direction.FORWARD:
+                if self._forward:
+                    self._control.throttle = 1
+                if self._backward:
+                    self._control.brake = 1
+            case Direction.BACKWARD:
+                if self._backward:
+                    self._control.throttle = 1
+                if self._forward:
+                    self._control.brake = 1
 
         if self._steer is not None:
             if self._steer == 1:
