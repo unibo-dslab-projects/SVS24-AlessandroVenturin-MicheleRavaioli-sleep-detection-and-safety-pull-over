@@ -335,7 +335,7 @@ class SyncStateMachine[Data, Timers](ABC):
         for s in states:
             s.on_entry(self._data, ctx)
 
-    def step(self, dt: float)-> bool:
+    def step(self, dt: float) -> bool:
         """
         Advances the state machine by dt seconds.
         Returns:
@@ -343,16 +343,21 @@ class SyncStateMachine[Data, Timers](ABC):
             False -> if the state machine is exited
         """
         self._context._step(dt)  # pyright: ignore[reportPrivateUsage]
+        reversed_ancestors = list(reversed(self._ancestors[self._state]))
+        reversed_ancestors_and_self = reversed_ancestors + [self._state]
         if self._state.is_exit_state():
             print("WARNING: step was called on an already exited state machine")
+
+        # Concatenate list of transition from the outer to the inner state
+        transitions: list[Transition[Data, Timers]] = []
+        for s in reversed_ancestors_and_self:
+            transitions = transitions + list(s.transitions())
         transition = next(
-            (
-                t
-                for t in self._state.transitions()
-                if t.condition(self._data, self._context)
-            ),
+            (t for t in transitions if t.condition(self._data, self._context)),
             None,
         )
+
+        # Perform transition if there is one and if not in an exit state
         if transition is not None and self._state.is_exit_state() is False:
             next_state = _lowest_entry_child(transition.next_state)
             lca = self._lowest_common_ancestor(self._state, next_state)
@@ -369,7 +374,6 @@ class SyncStateMachine[Data, Timers](ABC):
             self._state = next_state
 
             # entry into all ancestors down from the lowest common ancestor and then into state
-            reversed_ancestors = list(reversed(self._ancestors[self._state]))
             if lca is not None:
                 # removing lca and outer ancestor
                 while reversed_ancestors.pop(0) != lca:
@@ -379,10 +383,6 @@ class SyncStateMachine[Data, Timers](ABC):
         if self._state.is_exit_state():
             return False
         else:
-            reversed_ancestors_and_self = list(
-                reversed(self._ancestors[self._state])
-            ) + [self._state]
-
             # on_early_do for all ancestors down from the lowest common ancestor and then into state
             for p in reversed_ancestors_and_self:
                 p.on_early_do(self._data, self._context)
