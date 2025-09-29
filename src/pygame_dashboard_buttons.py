@@ -11,12 +11,17 @@ class PygameDashboardButtons:
         return self._lane_keeping_button_pressed
 
     @property
+    def manual_control_button_pressed(self):
+        return self._manual_control_button_pressed
+
+    @property
     def force_pullover_button_pressed(self):
         return self._force_pullover_button_pressed
 
     def __init__(self):
         self._lane_keeping_button_pressed = False
         self._force_pullover_button_pressed = False
+        self._manual_control_button_pressed = False
 
     def update(self, events: Sequence[pygame.event.Event]):
         # Reset state
@@ -31,3 +36,5 @@ class PygameDashboardButtons:
                     self._lane_keeping_button_pressed = True
                 if key == pygame.K_i:
                     self._force_pullover_button_pressed = True
+                if key == pygame.K_m:
+                    self._manual_control_button_pressed = True
