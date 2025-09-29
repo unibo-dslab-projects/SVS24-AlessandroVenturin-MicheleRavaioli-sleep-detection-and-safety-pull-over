@@ -17,7 +17,6 @@ from state_machine.sync_state_machine import (
 from agents.navigation.basic_agent import BasicAgent
 
 
-
 class VehicleData:
     enable_logging: bool
     destination: Location
@@ -37,7 +36,11 @@ class VehicleData:
     lane_keeping_agent: BasicAgent
 
     def __init__(
-            self, pygame_io: PygameIO, vehicle_actor: Vehicle, destination:Location, enable_logging: bool = False
+        self,
+        pygame_io: PygameIO,
+        vehicle_actor: Vehicle,
+        destination: Location,
+        enable_logging: bool = False,
     ):
         self.enable_logging = enable_logging
         self.destination = destination
@@ -45,6 +48,7 @@ class VehicleData:
         self.lane_keeping_agent = BasicAgent(self.vehicle_actor)
         self.pygame_io = pygame_io
         self.manual_control = PygameVehicleControl(vehicle_actor)
+
 
 class VehicleTimers(StrEnum):
     INATTENTION = auto()
@@ -141,25 +145,6 @@ class ExitS(VehicleState):
         return True
 
 
-# ========== CRUISE_CONTROL ==========
-
-
-class CruiseControlS(VehicleState):
-    @override
-    def children(self) -> list[VehicleState]:
-        return [LaneKeepingS(), PullingOverS(), StoppedS()]
-
-    @override
-    def transitions(self) -> list[VehicleTransition]:
-        return [
-            VehicleTransition(
-                to=ManualDrivingS(),
-                condition=lambda data,
-                ctx: data.dashboard_buttons.manual_control_button_pressed,
-            )
-        ]
-
-
 # ========== MANUAL_DRIVING ==========
 
 
@@ -175,6 +160,25 @@ class ManualDrivingS(VehicleState):
                 to=LaneKeepingS(),
                 condition=lambda data,
                 ctx: data.dashboard_buttons.lane_keeping_button_pressed,
+            )
+        ]
+
+
+# ========== CRUISE_CONTROL ==========
+
+
+class CruiseControlS(VehicleState):
+    @override
+    def children(self) -> list[VehicleState]:
+        return [LaneKeepingS(), PullingOverS(), StoppedS()]
+
+    @override
+    def transitions(self) -> list[VehicleTransition]:
+        return [
+            VehicleTransition(
+                to=ManualDrivingS(),
+                condition=lambda data,
+                ctx: data.dashboard_buttons.manual_control_button_pressed,
             )
         ]
 
