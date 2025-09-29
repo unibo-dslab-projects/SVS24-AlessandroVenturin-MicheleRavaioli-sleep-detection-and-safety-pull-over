@@ -182,6 +182,15 @@ class CruiseControlS(VehicleState):
             )
         ]
 
+    @override
+    def on_entry(self, data: VehicleData, ctx: VehicleContext):
+        data.lane_keeping_agent.set_destination(data.destination)
+        return
+
+    @override
+    def on_do(self, data: VehicleData, ctx: VehicleContext):
+        data.vehicle_control = data.lane_keeping_agent.run_step()
+
 
 # ========== LANE_KEEPING ==========
 
@@ -210,16 +219,6 @@ class LaneKeepingS(VehicleState):
                 ctx: data.dashboard_buttons.force_pullover_button_pressed,
             ),
         ]
-
-    @override
-    def on_entry(self, data: VehicleData, ctx: VehicleContext):
-        data.lane_keeping_agent.set_destination(data.destination)
-        return
-
-    @override
-    def on_do(self, data: VehicleData, ctx: VehicleContext):
-        data.vehicle_control = data.lane_keeping_agent.run_step()
-
 
 def _inattention_detected(data: VehicleData) -> bool:
     # TODO
