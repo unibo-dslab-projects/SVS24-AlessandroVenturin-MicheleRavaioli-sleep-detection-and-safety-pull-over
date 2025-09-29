@@ -102,7 +102,7 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
 class WrapperS(State[VehicleData, VehicleTimers]):
     @override
     def children(self) -> list[VehicleState]:
-        return [ManualDrivingS(), LaneKeepingS(), PullingOverS(), StoppedS(), ExitS()]
+        return [ManualDrivingS(), CruiseControlS(), ExitS()]
 
     @override
     def on_early_do(self, data: VehicleData, ctx: VehicleContext):
@@ -139,6 +139,25 @@ class ExitS(VehicleState):
     @override
     def is_exit_state(self) -> bool:
         return True
+
+
+# ========== CRUISE_CONTROL ==========
+
+
+class CruiseControlS(VehicleState):
+    @override
+    def children(self) -> list[VehicleState]:
+        return [LaneKeepingS(), PullingOverS(), StoppedS()]
+
+    @override
+    def transitions(self) -> list[VehicleTransition]:
+        return [
+            VehicleTransition(
+                to=ManualDrivingS(),
+                condition=lambda data,
+                ctx: data.dashboard_buttons.manual_control_button_pressed,
+            )
+        ]
 
 
 # ========== MANUAL_DRIVING ==========
