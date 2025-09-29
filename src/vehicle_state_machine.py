@@ -33,7 +33,7 @@ class VehicleData:
     manual_control: PygameVehicleControl
     dashboard_buttons: PygameDashboardButtons = PygameDashboardButtons()
     pygame_events: list[pygame.event.Event] = []
-    lane_keeping_agent: BasicAgent
+    cruise_control_agent: BasicAgent
 
     def __init__(
         self,
@@ -45,7 +45,7 @@ class VehicleData:
         self.enable_logging = enable_logging
         self.destination = destination
         self.vehicle_actor = vehicle_actor
-        self.lane_keeping_agent = BasicAgent(self.vehicle_actor)
+        self.cruise_control_agent = BasicAgent(self.vehicle_actor)
         self.pygame_io = pygame_io
         self.manual_control = PygameVehicleControl(vehicle_actor)
 
@@ -184,12 +184,12 @@ class CruiseControlS(VehicleState):
 
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
-        data.lane_keeping_agent.set_destination(data.destination)
+        data.cruise_control_agent.set_destination(data.destination)
         return
 
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
-        data.vehicle_control = data.lane_keeping_agent.run_step()
+        data.vehicle_control = data.cruise_control_agent.run_step()
 
 
 # ========== LANE_KEEPING ==========
