@@ -2,13 +2,13 @@
 
 hide empty description
 
-[*] --> ManualDriving
+[*] -r-> ManualDriving
 
 state "Manual Driving" as ManualDriving
-ManualDriving --> LaneKeeping : engages lane keeping
+ManualDriving -r-> CruiseControl : cruise control button pressed
 
 state "Advanced Cruise Control" as CruiseControl {
-    [*] -r-> LaneKeeping
+    [*] --> LaneKeeping
     state "Lane Keeping" as LaneKeeping {
         [*] -> NoInattentionDetected
 
@@ -24,7 +24,6 @@ state "Advanced Cruise Control" as CruiseControl {
         PullOverPrep : do / slow down to a minimum of X km/h
         PullOverPrep : do / check pull over safety
     }
-    LaneKeeping -u-> ManualDriving : disengage lane keeping
 
     state "Pulling Over" as PullingOver {
         [*] -> EmergencyLaneNotReached
@@ -41,6 +40,6 @@ state "Advanced Cruise Control" as CruiseControl {
 
     state Stopped
 }
-CruiseControl -u-> ManualDriving : manual driving button pressed
+CruiseControl -l-> ManualDriving : manual driving button pressed
 
 @enduml
