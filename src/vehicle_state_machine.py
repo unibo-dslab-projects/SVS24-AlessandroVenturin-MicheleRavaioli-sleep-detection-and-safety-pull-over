@@ -1,9 +1,10 @@
 from enum import StrEnum, auto
 from typing import override
 
-from carla import Vector3D, Vehicle, VehicleControl
+from carla import Location, Vector3D, Vehicle, VehicleControl
 import pygame
 
+from pygame_dashboard_buttons import PygameDashboardButtons
 from pygame_io import PygameIO
 from pygame_vehicle_control import PygameVehicleControl
 from state_machine.sync_state_machine import (
@@ -13,12 +14,15 @@ from state_machine.sync_state_machine import (
     SyncStateMachine,
     Transition,
 )
+from agents.navigation.basic_agent import BasicAgent
+
 
 
 class VehicleData:
     enable_logging: bool
+    destination: Location
+
     speed: Vector3D = Vector3D()
-    should_toggle_lane_keeping: bool = False
     should_enter_manual_driving: bool = False
 
     vehicle_actor: Vehicle
@@ -28,16 +32,19 @@ class VehicleData:
     """
     pygame_io: PygameIO
     manual_control: PygameVehicleControl
+    dashboard_buttons: PygameDashboardButtons = PygameDashboardButtons()
     pygame_events: list[pygame.event.Event] = []
+    lane_keeping_agent: BasicAgent
 
     def __init__(
-        self, pygame_io: PygameIO, vehicle_actor: Vehicle, enable_logging: bool = False
+            self, pygame_io: PygameIO, vehicle_actor: Vehicle, destination:Location, enable_logging: bool = False
     ):
         self.enable_logging = enable_logging
+        self.destination = destination
         self.vehicle_actor = vehicle_actor
+        self.lane_keeping_agent = BasicAgent(self.vehicle_actor)
         self.pygame_io = pygame_io
         self.manual_control = PygameVehicleControl(vehicle_actor)
-
 
 class VehicleTimers(StrEnum):
     INATTENTION = auto()
@@ -57,13 +64,18 @@ class VehicleTransition(Transition[VehicleData, VehicleTimers]): ...
 
 class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
     def __init__(
-        self, pygame_io: PygameIO, vehicle_actor: Vehicle, enable_logging: bool = False
+        self,
+        pygame_io: PygameIO,
+        vehicle_actor: Vehicle,
+        destination: Location,
+        enable_logging: bool = False,
     ):
         super().__init__(
             [WrapperS()],
             VehicleData(
                 pygame_io=pygame_io,
                 vehicle_actor=vehicle_actor,
+                destination=destination,
                 enable_logging=enable_logging,
             ),
         )
@@ -98,6 +110,7 @@ class WrapperS(State[VehicleData, VehicleTimers]):
         data.vehicle_control = VehicleControl()
         data.pygame_events = data.pygame_io.update()
         data.manual_control.update(data.pygame_events)
+        data.dashboard_buttons.update(data.pygame_events)
 
     @override
     def on_late_do(self, data: VehicleData, ctx: VehicleContext):
@@ -141,7 +154,8 @@ class ManualDrivingS(VehicleState):
         return [
             VehicleTransition(
                 to=LaneKeepingS(),
-                condition=lambda data, ctx: data.should_toggle_lane_keeping,
+                condition=lambda data,
+                ctx: data.dashboard_buttons.lane_keeping_button_pressed,
             )
         ]
 
@@ -163,14 +177,30 @@ class LaneKeepingS(VehicleState):
         return [
             VehicleTransition(
                 to=ManualDrivingS(),
-                condition=lambda data, ctx: data.should_toggle_lane_keeping,
-            )
+                condition=lambda data,
+                ctx: data.dashboard_buttons.lane_keeping_button_pressed,
+            ),
+            # This transition is here for demonstration purposes
+            VehicleTransition(
+                to=PullOverPreparationS(),
+                condition=lambda data,
+                ctx: data.dashboard_buttons.force_pullover_button_pressed,
+            ),
         ]
+
+    @override
+    def on_entry(self, data: VehicleData, ctx: VehicleContext):
+        data.lane_keeping_agent.set_destination(data.destination)
+        return
+
+    @override
+    def on_do(self, data: VehicleData, ctx: VehicleContext):
+        data.vehicle_control = data.lane_keeping_agent.run_step()
 
 
 def _inattention_detected(data: VehicleData) -> bool:
     # TODO
-    return True
+    return False
 
 
 class NoInattentionDetectedS(VehicleState):
@@ -208,7 +238,7 @@ class InattentionDetectedS(VehicleState):
 
 def _pull_over_is_safe(data: VehicleData) -> bool:
     # TODO
-    return True
+    return False
 
 
 class PullOverPreparationS(VehicleState):
