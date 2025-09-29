@@ -26,6 +26,7 @@ class PygameDashboardButtons:
     def update(self, events: Sequence[pygame.event.Event]):
         # Reset state
         self._cruise_control_button_pressed = False
+        self._manual_control_button_pressed = False
         self._force_pullover_button_pressed = False
 
         # Process events
