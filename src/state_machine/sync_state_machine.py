@@ -377,7 +377,7 @@ class SyncStateMachine[Data, Timers](ABC):
                 if lca is None or lca == p:
                     break
                 else:
-                    lca.on_exit(self._data, self._context)
+                    p.on_exit(self._data, self._context)
 
             transition.action(self._data, self._context)
             self._state = next_state
