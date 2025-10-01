@@ -5,3 +5,6 @@ py-cpuinfo
 pygame
 opencv-python
 dlib
+shapely
+networkx
+pathlib

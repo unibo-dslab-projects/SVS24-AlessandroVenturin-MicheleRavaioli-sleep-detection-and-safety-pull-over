@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import dlib
+from pathlib import Path
 
 class DetectionResult():
     """Result of the EyeDetector. Contains the landmark's coordinates of both eyes.
@@ -19,7 +20,8 @@ class EyeDetector():
         # face detector, necessary for landmark detection
         self.face_detector = dlib.get_frontal_face_detector()
         # 68 facial landmark detector
-        self.shape_predictor = dlib.shape_predictor('model/shape_predictor_68_face_landmarks.dat')
+        path = Path(__file__).parent.absolute()
+        self.shape_predictor = dlib.shape_predictor(str(path.joinpath('model/shape_predictor_68_face_landmarks.dat')))
         # these arrays contain the indeces of the keypoints we need
         self.left_eye_points = [36, 37, 38, 39, 40, 41]
         self.right_eye_points = [42, 43, 44, 45, 46, 47]
