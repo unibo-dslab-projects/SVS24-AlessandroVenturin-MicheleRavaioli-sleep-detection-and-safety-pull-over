@@ -12,6 +12,8 @@ from remove_vehicles_and_sensors import remove_vehicles_and_sensors
 from vehicle_state_machine import VehicleStateMachine
 from pygame_io import PygameIO
 
+from pullover.checker import SafePulloverChecker
+
 FRAMERATE = 30
 DT = 1 / FRAMERATE
 
@@ -47,8 +49,8 @@ def attach_radar(vehicle: Vehicle):
     # Right-size calibration
     rad_bp.set_attribute('horizontal_fov', str(85))
     rad_bp.set_attribute('vertical_fov', str(2))
-    rad_bp.set_attribute('range', str(20))
-    rad_bp.set_attribute('points_per_second', str(2500))
+    rad_bp.set_attribute('range', str(100))
+    rad_bp.set_attribute('points_per_second', str(1000))
     rad_location = carla.Location(x=2.0, z=1.0)
     rad_rotation = carla.Rotation(yaw=50)
     rad_transform = carla.Transform(rad_location,rad_rotation)
@@ -86,7 +88,7 @@ def attach_radar(vehicle: Vehicle):
                 persistent_lines=False,
                 color=carla.Color(r, g, b))
     
-    rad_ego.listen(lambda data: _rad_callback(cast(carla.RadarMeasurement, data)))
+    # rad_ego.listen(lambda data: _rad_callback(cast(carla.RadarMeasurement, data)))
     print("attached radar!")
     return rad_ego
 
@@ -116,6 +118,7 @@ try:
     )
 
     radar = attach_radar(vehicle)
+    pcheck = SafePulloverChecker(radar, debug=True)
 
     # Bind camera to pygame window
     camera.listen(lambda image: io.prepare_output_image(cast(Image, image)))
@@ -129,11 +132,13 @@ try:
         enable_logging=False,
     )
 
+    print('starting...')
     should_exit = False
     while not should_exit:
         tick_start = time.time()
         _ = world.tick()
         should_exit = not state_machine.step(DT)
+        print('pullover:', 'safe' if pcheck.is_pullover_safe() else 'NOOO!!')
         compute_time = time.time() - tick_start
         if compute_time < DT:
             time.sleep(DT - compute_time)

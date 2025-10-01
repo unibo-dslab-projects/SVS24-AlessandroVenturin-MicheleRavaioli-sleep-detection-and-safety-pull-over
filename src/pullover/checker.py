@@ -1,6 +1,7 @@
 import math
 import numpy as np
-import threading
+import carla
+from typing import cast
 from .utils import RansacPlaneFit
 
 # Assume RansacPlaneFit, fit_plane_ransac, point_plane_distance
@@ -21,14 +22,13 @@ class SafePulloverChecker:
 
     def __init__(
         self,
-        radar_sensor,
-        inlier_dist_thresh: float = 0.3,
-        min_inlier_ratio: float = 0.6,
+        radar_sensor: carla.Sensor,
+        inlier_dist_thresh: float = 0.15,
+        min_inlier_ratio: float = 0.8,
         min_inliers: int = 20,
         ransac_max_trials: int = 400,
         debug: bool = False,
     ):
-        self.radar_sensor = radar_sensor
         self.inlier_dist_thresh = float(inlier_dist_thresh)
         self.min_inlier_ratio = float(min_inlier_ratio)
         self.min_inliers = int(min_inliers)
@@ -36,43 +36,48 @@ class SafePulloverChecker:
         self.debug = bool(debug)
 
         # buffer for latest radar points
-        self._lock = threading.Lock()
-        self._latest_points: np.ndarray = np.zeros((0, 3), dtype=np.float32)
+        self._latest_points = np.zeros((0, 3), dtype=np.float32)
 
-        if self.radar_sensor:
-            self.radar_sensor.listen(self._callback)
+        radar_sensor.listen(lambda data: self.radar_callback(data))
+
 
     def _debug(self, msg):
         if self.debug:
             print(msg)
 
-    # ------------------------------
-    # Radar callback
-    # ------------------------------
-    def _callback(self, radar_measurement):
+    def radar_callback(self, data):
+        arr = self._to_cartesian_coords(cast(carla.RadarMeasurement, data))
+        self._latest_points = arr
+
+    def _to_cartesian_coords(self, radar_measurement: carla.RadarMeasurement) -> np.ndarray:
         """Convert CARLA radar detections to Nx3 numpy array and store them."""
         pts = []
         for detection in radar_measurement:
             # conversion from polar to cartesian coordinates
-            d = float(detection.depth)
-            az = float(detection.azimuth)
-            alt = float(detection.altitude)
-            ca = math.cos(alt)
-            x = d * ca * math.cos(az)
-            y = d * ca * math.sin(az)
-            z = d * math.sin(alt)
+            azi = math.degrees(detection.azimuth)
+            alt = math.degrees(detection.altitude)
+            fw_vec = carla.Vector3D(x=detection.depth)
+            current_rot = radar_measurement.transform.rotation
+            carla.Transform(
+                carla.Location(),
+                carla.Rotation(
+                    pitch=current_rot.pitch + alt,
+                    yaw=current_rot.yaw + azi,
+                    roll=current_rot.roll)).transform(fw_vec)
+            
+            x = radar_measurement.transform.location.x + fw_vec.x
+            y = radar_measurement.transform.location.y + fw_vec.y
+            z = radar_measurement.transform.location.z + fw_vec.z
             pts.append((x, y, z))
-        arr = np.asarray(pts, dtype=np.float32)
-        with self._lock:
-            self._latest_points = arr
+        return np.asarray(pts, dtype=np.float32)
 
     # ------------------------------
     # Main decision
     # ------------------------------
     def is_pullover_safe(self) -> bool:
         """Return True if pullover is considered safe, False otherwise."""
-        with self._lock:
-            pts = self._latest_points.copy()
+        pts = self._latest_points.copy()
+        self._debug(pts.shape)
 
         if pts.shape[0] < self.min_inliers:
             self._debug("Not enough radar points.")
@@ -100,14 +105,3 @@ class SafePulloverChecker:
 
         self._debug("Safe to pull over.")
         return True
-
-
-    def destroy(self):
-        try:
-            if self.radar_sensor:
-                self.radar_sensor.stop()
-        except Exception:
-            pass
-
-    def __del__(self):
-        self.destroy()
