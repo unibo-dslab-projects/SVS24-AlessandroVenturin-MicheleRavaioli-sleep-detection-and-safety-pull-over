@@ -381,6 +381,8 @@ class SyncStateMachine[Data, Timers](ABC):
 
             transition.action(self._data, self._context)
             self._state = next_state
+            reversed_ancestors = list(self._ancestors_reversed[self._state])
+            reversed_ancestors_and_self = reversed_ancestors + [self._state]
 
             # entry into all ancestors down from the lowest common ancestor and then into state
             ancestors_to_be_entered = list(reversed_ancestors)
