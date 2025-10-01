@@ -3,14 +3,23 @@ import random
 import time
 from typing import cast
 
-import pygame
-from carla import Client, Color, Image, Location, Rotation, Sensor, Transform, Vehicle, World
+from carla import (
+    Client,
+    Color,
+    Image,
+    Location,
+    Rotation,
+    Sensor,
+    Transform,
+    Vehicle,
+    World,
+)
 
 from remove_vehicles_and_sensors import remove_vehicles_and_sensors
 from vehicle_state_machine import VehicleStateMachine
 from pygame_io import PygameIO
 
-FRAMERATE = 60
+FRAMERATE = 40
 DT = 1 / FRAMERATE
 
 host = os.environ.get("HOST", "localhost")
@@ -35,18 +44,20 @@ image_h = camera_bp.get_attribute("image_size_y").as_int()
 
 io = PygameIO(image_w, image_h)
 
+
 def draw_on_screen(
     world: World,
     transform: Transform,
     content: str = "O",
     color: Color | None = None,
-    life_time: float = 20,
+    life_time: float = -1,
 ):
     if color is None:
         color = Color(0, 255, 0)
     world.debug.draw_string(
         transform.location, content, color=color, life_time=life_time
     )
+
 
 try:
     # Spawn vehicle and move spectator behind it
@@ -76,7 +87,6 @@ try:
     # Bind camera to pygame window
     camera.listen(lambda image: io.prepare_output_image(cast(Image, image)))
     destination_trans = random.choice(world.get_map().get_spawn_points())
-    draw_on_screen(world, destination_trans, content="Destination", life_time=0)
     destination = destination_trans.location
     state_machine = VehicleStateMachine(
         pygame_io=io,
@@ -87,12 +97,14 @@ try:
 
     should_exit = False
     while not should_exit:
-        _ = world.tick()
         tick_start = time.time()
-        should_exit = not state_machine.step(DT)
+        _ = world.tick()
+        draw_on_screen(world, destination_trans, content="Destination")
         compute_time = time.time() - tick_start
+        should_exit = not state_machine.step(DT)
         if compute_time < DT:
             time.sleep(DT - compute_time)
+
 finally:
     io.quit()
     remove_vehicles_and_sensors(world)
