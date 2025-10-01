@@ -18,7 +18,7 @@ from carla import (
 from inattention.detector import WebcamCameraStream
 from pygame_io import PygameIO
 from remove_vehicles_and_sensors import remove_vehicles_and_sensors
-from vehicle_state_machine import VehicleStateMachine
+from vehicle_state_machine import VehicleLoggingConfig, VehicleStateMachine
 
 FRAMERATE = 40
 DT = 1 / FRAMERATE
@@ -99,7 +99,9 @@ try:
         vehicle=vehicle,
         destination=destination,
         driver_camera_stream=driver_camera_stream,
-        enable_logging=True,
+        logging_config=VehicleLoggingConfig(
+            log_main_vehicle_controls=True,
+        ),
     )
 
     should_exit = False

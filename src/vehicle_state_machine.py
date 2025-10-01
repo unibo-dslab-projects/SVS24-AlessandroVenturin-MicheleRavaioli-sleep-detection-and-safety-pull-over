@@ -1,5 +1,5 @@
 from enum import StrEnum, auto
-from typing import override
+from typing import cast, override
 
 import pygame
 from carla import Location, Vector3D, Vehicle, VehicleControl
@@ -12,6 +12,7 @@ from pygame_io import PygameIO
 from pygame_vehicle_control import PygameVehicleControl
 from state_machine.sync_state_machine import (
     Context,
+    LoggingConfig,
     State,
     StateAction,
     SyncStateMachine,
@@ -19,8 +20,40 @@ from state_machine.sync_state_machine import (
 )
 
 
+class VehicleLoggingConfig(LoggingConfig):
+    _log_main_vehicle_controls: bool
+
+    @property
+    def log_main_vehicle_controls(self):
+        return self._log_main_vehicle_controls
+
+    def __init__(
+        self,
+        log_entries: bool = False,
+        log_early_dos: bool = False,
+        log_dos: bool = False,
+        log_late_dos: bool = False,
+        log_exits: bool = False,
+        log_transitions: bool = False,
+        log_transition_actions: bool = False,
+        log_state_actions: bool = False,
+        log_main_vehicle_controls: bool = False,
+    ):
+        super().__init__(
+            log_entries=log_entries,
+            log_early_dos=log_early_dos,
+            log_dos=log_dos,
+            log_late_dos=log_late_dos,
+            log_exits=log_exits,
+            log_transitions=log_transitions,
+            log_transition_actions=log_transition_actions,
+            log_state_actions=log_state_actions,
+        )
+        self._log_main_vehicle_controls = log_main_vehicle_controls
+
+
 class VehicleData:
-    enable_logging: bool
+    logging_config: VehicleLoggingConfig
     destination: Location
 
     speed: Vector3D = Vector3D()
@@ -47,9 +80,12 @@ class VehicleData:
         vehicle: Vehicle,
         destination: Location,
         driver_camera_stream: CameraStream,
-        enable_logging: bool = False,
+        logging_config: VehicleLoggingConfig | None,
     ):
-        self.enable_logging = enable_logging
+        if logging_config is None:
+            self.logging_config = VehicleLoggingConfig()
+        else:
+            self.logging_config = logging_config
         self.destination = destination
         self.vehicle = vehicle
         self.cruise_control_agent = BasicAgent(self.vehicle)
@@ -85,7 +121,7 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
         vehicle: Vehicle,
         destination: Location,
         driver_camera_stream: CameraStream,
-        enable_logging: bool = False,
+        logging_config: VehicleLoggingConfig | None = None,
     ):
         super().__init__(
             [WrapperS()],
@@ -94,27 +130,25 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
                 vehicle=vehicle,
                 destination=destination,
                 driver_camera_stream=driver_camera_stream,
-                enable_logging=enable_logging,
+                logging_config=logging_config,
             ),
+            logging_config=logging_config,
         )
-        if self._data.enable_logging:
-            self._log_current_state()
 
     @override
     def step(self, dt: float) -> bool:
         result = super().step(dt)
-        if self._data.enable_logging:
-            self._log_current_state()
-            self._log_data()
+        if self._vehicle_logging_config().log_main_vehicle_controls:
+            self._vehicle_log("throttle:", self._data.vehicle_control.throttle)
+            self._vehicle_log("brake:", self._data.vehicle_control.brake)
+            self._vehicle_log("steer:", self._data.vehicle_control.steer)
         return result
 
-    def _log_current_state(self):
-        print(f"current state: {self._state.__class__.__name__}")
+    def _vehicle_log(self, *values: object):
+        print("VEHICLE_STATE_MACHINE: ", *values)
 
-    def _log_data(self):
-        print(f"throttle: {self._data.vehicle_control.throttle}")
-        print(f"brake: {self._data.vehicle_control.brake}")
-        print(f"steer: {self._data.vehicle_control.steer}")
+    def _vehicle_logging_config(self):
+        return cast(VehicleLoggingConfig, self._logging_config)
 
 
 class WrapperS(State[VehicleData, VehicleTimers]):

@@ -149,6 +149,10 @@ class State[Data, Timers](ABC):
     def __hash__(self) -> int:
         return hash(type(self))
 
+    @override
+    def __str__(self) -> str:
+        return self.__class__.__name__
+
 
 def _lowest_entry_child[D, T](s: State[D, T]) -> State[D, T]:
     """
@@ -198,6 +202,69 @@ class Context[Timers]:
 
     def __init__(self, dt: float):
         self._dt = dt
+
+
+class LoggingConfig:
+    _log_entries: bool
+    _log_early_dos: bool
+    _log_dos: bool
+    _log_late_dos: bool
+    _log_exits: bool
+    _log_transitions: bool
+    _log_transition_actions: bool
+    _log_state_actions: bool
+
+    @property
+    def log_entries(self) -> bool:
+        return self._log_entries
+
+    @property
+    def log_early_dos(self) -> bool:
+        return self._log_early_dos
+
+    @property
+    def log_dos(self) -> bool:
+        return self._log_dos
+
+    @property
+    def log_late_dos(self) -> bool:
+        return self._log_late_dos
+
+    @property
+    def log_exits(self) -> bool:
+        return self._log_exits
+
+    @property
+    def log_transitions(self) -> bool:
+        return self._log_transitions
+
+    @property
+    def log_transition_actions(self) -> bool:
+        return self._log_transition_actions
+
+    @property
+    def log_state_actions(self) -> bool:
+        return self._log_state_actions
+
+    def __init__(
+        self,
+        log_entries: bool = False,
+        log_early_dos: bool = False,
+        log_dos: bool = False,
+        log_late_dos: bool = False,
+        log_exits: bool = False,
+        log_transitions: bool = False,
+        log_transition_actions: bool = False,
+        log_state_actions: bool = False,
+    ):
+        self._log_entries = log_entries
+        self._log_early_dos = log_early_dos
+        self._log_dos = log_dos
+        self._log_late_dos = log_late_dos
+        self._log_exits = log_exits
+        self._log_transitions = log_transitions
+        self._log_transition_actions = log_transition_actions
+        self._log_state_actions = log_state_actions
 
 
 class SyncStateMachine[Data, Timers](ABC):
@@ -274,6 +341,7 @@ class SyncStateMachine[Data, Timers](ABC):
     _state: State[Data, Timers]
     _data: Data
     _context: Context[Timers]
+    _logging_config: LoggingConfig
 
     def _build_parents_dict(
         self,
@@ -320,7 +388,15 @@ class SyncStateMachine[Data, Timers](ABC):
             if ancestors_2.__contains__(p1):
                 return p1
 
-    def __init__(self, top_level_states: Sequence[State[Data, Timers]], data: Data):
+    def _log(self, *values: object):
+        print("SYNC_STATE_MACHINE: ", *values)
+
+    def __init__(
+        self,
+        top_level_states: Sequence[State[Data, Timers]],
+        data: Data,
+        logging_config: LoggingConfig | None = None,
+    ):
         """
         Starts a state machine.
         Args:
@@ -332,6 +408,10 @@ class SyncStateMachine[Data, Timers](ABC):
         self._state = _lowest_entry_child(top_level_states[0])
         self._data = data
         self._context = Context(0)
+        if logging_config is None:
+            self._logging_config = LoggingConfig()
+        else:
+            self._logging_config = logging_config
         self._entry_states(
             self._ancestors_reversed[self._state] + [self._state],
             self._context,
@@ -342,6 +422,8 @@ class SyncStateMachine[Data, Timers](ABC):
         Enters (calling on_entry) all the given states in the same order they are provided
         """
         for s in states:
+            if self._logging_config.log_entries:
+                self._log(s, "on_entry")
             s.on_entry(self._data, ctx)
 
     def step(self, dt: float) -> bool:
@@ -368,24 +450,32 @@ class SyncStateMachine[Data, Timers](ABC):
 
         # Perform transition if there is one and if not in an exit state
         if transition is not None and self._state.is_exit_state() is False:
+            if self._logging_config.log_transitions:
+                self._log("triggered transition to:", transition.next_state)
             next_state = _lowest_entry_child(transition.next_state)
             lca = self._lowest_common_ancestor(self._state, next_state)
 
             # exit from state and from all ancestors up to the lowest common ancestor
+            if self._logging_config.log_exits:
+                self._log(self._state, "on_exit")
             self._state.on_exit(self._data, self._context)
             for p in self._ancestors[self._state]:
                 if lca is None or lca == p:
                     break
                 else:
+                    if self._logging_config.log_exits:
+                        self._log(p, "on_exit")
                     p.on_exit(self._data, self._context)
 
+            if self._logging_config.log_transition_actions:
+                self._log("executing transition action")
             transition.action(self._data, self._context)
             self._state = next_state
             reversed_ancestors = list(self._ancestors_reversed[self._state])
             reversed_ancestors_and_self = reversed_ancestors + [self._state]
 
             # entry into all ancestors down from the lowest common ancestor and then into state
-            ancestors_to_be_entered = list(reversed_ancestors)
+            ancestors_to_be_entered = list(reversed_ancestors)  # copying the list
             if lca is not None:
                 # removing lca and outer ancestor
                 while ancestors_to_be_entered.pop(0) != lca:
@@ -397,17 +487,25 @@ class SyncStateMachine[Data, Timers](ABC):
         else:
             # on_early_do for all ancestors down from the lowest common ancestor and then into state
             for p in reversed_ancestors_and_self:
+                if self._logging_config.log_early_dos:
+                    self._log(p, "on_early_do")
                 p.on_early_do(self._data, self._context)
 
             # on_do and state actions for all ancestors down from the lowest common ancestor and then into state
             for p in reversed_ancestors_and_self:
                 for a in p.actions():
                     if a.condition(self._data, self._context):
+                        if self._logging_config.log_state_actions:
+                            self._log("executing state action of state:", p)
                         a.action(self._data, self._context)
+                if self._logging_config.log_dos:
+                    self._log(p, "on_do")
                 p.on_do(self._data, self._context)
 
             # on_late_do for all ancestors down from the lowest common ancestor and then into state
             for p in reversed_ancestors_and_self:
+                if self._logging_config.log_late_dos:
+                    self._log(p, "on_late_do")
                 p.on_late_do(self._data, self._context)
 
             return True
