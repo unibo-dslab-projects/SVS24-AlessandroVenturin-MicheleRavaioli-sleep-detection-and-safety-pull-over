@@ -88,6 +88,8 @@ try:
     camera.listen(lambda image: io.prepare_output_image(cast(Image, image)))
     destination_trans = random.choice(world.get_map().get_spawn_points())
     destination = destination_trans.location
+    _ = world.tick()  # fixes bug: https://github.com/carla-simulator/carla/issues/2634
+
     state_machine = VehicleStateMachine(
         pygame_io=io,
         vehicle=vehicle,
