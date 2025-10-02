@@ -49,3 +49,22 @@ During pull over preparation we check the following conditions in order to compu
 
 During the whole maneuver and after the vehicle has stopped the driver is required to press a button in order to go back to manual driving.
 The reason is that we want the driver to explicitly express the will of taking control of the vehicle (it may not be safe to assume that the driver has regained consciousness by just detecting some movements on the driving wheel or on the pedals).
+
+## How to detect a safe pull over spot
+
+First we detect a white line aside of the vehicle.
+If the line is not detected we assume that there is no emergency lane -> NOT SAFE
+If the line is dashed we assume there is a nearby exit -> NOT SAFE
+
+Now that we have a solid white line we ensure there is enough space for the vehicle
+to pull over (the emergency lane is wide enough).
+We project multiple points on the other side of the white line and then we only
+consider points which distance from the line is about the width of the vehicle (a bit more).
+
+Now we consider a ground plane and then measure the height of each considered point from
+this plane.
+If there are multiple points which distance from the plane is relevantly high, we
+then assume that there is some obstacle in the emergency lane -> NOT SAFE.
+
+
+
