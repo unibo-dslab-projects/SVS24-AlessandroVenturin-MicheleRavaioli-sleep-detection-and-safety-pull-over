@@ -23,9 +23,10 @@ class SafePulloverChecker:
     def __init__(
         self,
         radar_sensor: carla.Sensor,
+        vehicle: carla.Vehicle,
         scanned_area_width: float,
         scanned_area_x_offset: float,
-        min_inliers: int = 5,
+        min_inliers: int = 2,
         scanned_area_depth: float = 50, # in meters
         debug: bool = False,
     ):
@@ -38,6 +39,8 @@ class SafePulloverChecker:
         # buffer for latest radar points
         self._latest_points = np.zeros((0, 3), dtype=np.float32)
 
+        self.vehicle = vehicle
+
         self.radar_sensor = radar_sensor
         self.radar_sensor.listen(lambda data: self.radar_callback(data))
         
@@ -49,14 +52,6 @@ class SafePulloverChecker:
     def radar_callback(self, data):
         arr = to_cartesian_coords(cast(carla.RadarMeasurement, data))
         self._latest_points = arr
-        if self.debug:
-            for i in range(arr.shape[0]):
-                self.radar_sensor.get_world().debug.draw_point(
-                    carla.Vector3D(float(arr[i, 0]), float(arr[i, 1]), float(arr[i, 2])),
-                    size=0.075,
-                    life_time=0.06,
-                    persistent_lines=False,
-                    color=carla.Color(0, 0, 0))
 
     # ------------------------------
     # Main decision
@@ -77,14 +72,30 @@ class SafePulloverChecker:
         pts = self._latest_points.copy()
         self._debug(pts.shape)
 
-        if pts.shape[0] > 0:
-            self._debug("Max point: (" + str(pts[:, 0].max()) + ", " + str(pts[:, 1].max()) + ", " + str(pts[:, 2].max()) + ")")
+        # compute relative positions
+        vehicle_tr = self.vehicle.get_transform()
+        for i in range(pts.shape[0]):
+            vec = carla.Vector3D(float(pts[i, 0]), float(pts[i, 1]), float(pts[i, 2]))
+            vehicle_tr.inverse_transform(vec)
+            pts[i, 0] = vec.x 
+            pts[i, 1] = vec.y
+            pts[i, 2] = vec.z
+
         # get points inside the scanned area
         # x is parallel to car direction
         scan_pts = (pts[:, 1] >= self.scanned_area_x_offset) & (pts[:, 1] < self.scanned_area_x_offset + self.scanned_area_width) & \
                    (pts[:, 0] < depth)
         
         pts = pts[scan_pts]
+
+        if self.debug:
+            for i in range(pts.shape[0]):
+                self.radar_sensor.get_world().debug.draw_point(
+                    vehicle_tr.transform(carla.Vector3D(float(pts[i, 0]), float(pts[i, 1]), float(pts[i, 2]))),
+                    size=0.075,
+                    life_time=0.06,
+                    persistent_lines=False,
+                    color=carla.Color(255, 0, 0))
 
         if pts.shape[0] < self.min_inliers:
             self._debug("No obstacles.")
