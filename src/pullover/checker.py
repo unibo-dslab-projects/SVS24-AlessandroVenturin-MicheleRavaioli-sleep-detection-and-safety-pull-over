@@ -1,12 +1,8 @@
-import math
+import time
 import numpy as np
 import carla
 from typing import cast
-from .utils import RansacPlaneFit, to_cartesian_coords
-
-# Assume RansacPlaneFit, fit_plane_ransac, point_plane_distance
-# are available in your environment
-
+from .utils import to_cartesian_coords
 
 class SafePulloverChecker:
     """
@@ -24,20 +20,24 @@ class SafePulloverChecker:
         self,
         radar_sensor: carla.Sensor,
         vehicle: carla.Vehicle,
-        scanned_area_width: float,
-        scanned_area_x_offset: float,
+        scanned_area_width: float, # in meters: width to check
+        scanned_area_x_offset: float, # in meters
         min_inliers: int = 2,
-        scanned_area_depth: float = 50, # in meters
+        scanned_area_depth: float = 50, # in meters: distance to check
+        safety_delay: float = 0.8, # in seconds: time that should pass before stating its safe
         debug: bool = False,
     ):
         self.scanned_area_width = float(scanned_area_width)
         self.scanned_area_depth = float(scanned_area_depth)
         self.scanned_area_x_offset = float(scanned_area_x_offset)
         self.min_inliers = int(min_inliers)
+        self.safety_delay = float(safety_delay)
         self.debug = bool(debug)
 
         # buffer for latest radar points
         self._latest_points = np.zeros((0, 3), dtype=np.float32)
+        # last pullover check
+        self._safety_time = time.time() + safety_delay
 
         self.vehicle = vehicle
 
@@ -56,7 +56,8 @@ class SafePulloverChecker:
     # ------------------------------
     # Main decision
     # ------------------------------
-    def is_pullover_safe(self, depth: float = -1) -> bool:
+
+    def _is_pullover_safe_no_delay(self, depth: float = -1) -> bool:
         """
         Return True if pullover is considered safe, False otherwise.
         
@@ -103,3 +104,15 @@ class SafePulloverChecker:
 
         self._debug("Obstacles detected.")
         return False
+
+    def is_pullover_safe(self, depth: float = -1) -> bool:
+        is_safe = self._is_pullover_safe_no_delay(depth)
+
+        if not is_safe:
+            # when not safe, reset timer for safety
+            self._safety_time = time.time() + self.safety_delay
+
+        # is safe only if the safety timer has expired
+        return is_safe if self._safety_time <= time.time() else False
+
+
