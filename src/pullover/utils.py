@@ -1,6 +1,29 @@
 from typing import Optional, Tuple
 import numpy as np
+import carla
 import math
+
+def to_cartesian_coords(radar_measurement: carla.RadarMeasurement) -> list[tuple[float, float, float]]:
+        """Convert CARLA radar detections to Nx3 numpy array and store them."""
+        pts = []
+        for detection in radar_measurement:
+            # conversion from polar to cartesian coordinates
+            azi = math.degrees(detection.azimuth)
+            alt = math.degrees(detection.altitude)
+            fw_vec = carla.Vector3D(x=detection.depth)
+            current_rot = radar_measurement.transform.rotation
+            carla.Transform(
+                carla.Location(),
+                carla.Rotation(
+                    pitch=current_rot.pitch + alt,
+                    yaw=current_rot.yaw + azi,
+                    roll=current_rot.roll)).transform(fw_vec)
+            
+            x = radar_measurement.transform.location.x + fw_vec.x
+            y = radar_measurement.transform.location.y + fw_vec.y
+            z = radar_measurement.transform.location.z + fw_vec.z
+            pts.append((x, y, z))
+        return pts
 
 # ==============================
 # RANSAC plane fitting utilities

@@ -2,7 +2,7 @@ import math
 import numpy as np
 import carla
 from typing import cast
-from .utils import RansacPlaneFit
+from .utils import RansacPlaneFit, to_cartesian_coords
 
 # Assume RansacPlaneFit, fit_plane_ransac, point_plane_distance
 # are available in your environment
@@ -46,30 +46,8 @@ class SafePulloverChecker:
             print(msg)
 
     def radar_callback(self, data):
-        arr = self._to_cartesian_coords(cast(carla.RadarMeasurement, data))
-        self._latest_points = arr
-
-    def _to_cartesian_coords(self, radar_measurement: carla.RadarMeasurement) -> np.ndarray:
-        """Convert CARLA radar detections to Nx3 numpy array and store them."""
-        pts = []
-        for detection in radar_measurement:
-            # conversion from polar to cartesian coordinates
-            azi = math.degrees(detection.azimuth)
-            alt = math.degrees(detection.altitude)
-            fw_vec = carla.Vector3D(x=detection.depth)
-            current_rot = radar_measurement.transform.rotation
-            carla.Transform(
-                carla.Location(),
-                carla.Rotation(
-                    pitch=current_rot.pitch + alt,
-                    yaw=current_rot.yaw + azi,
-                    roll=current_rot.roll)).transform(fw_vec)
-            
-            x = radar_measurement.transform.location.x + fw_vec.x
-            y = radar_measurement.transform.location.y + fw_vec.y
-            z = radar_measurement.transform.location.z + fw_vec.z
-            pts.append((x, y, z))
-        return np.asarray(pts, dtype=np.float32)
+        arr = to_cartesian_coords(cast(carla.RadarMeasurement, data))
+        self._latest_points = np.asarray(arr, np.float32)
 
     # ------------------------------
     # Main decision
