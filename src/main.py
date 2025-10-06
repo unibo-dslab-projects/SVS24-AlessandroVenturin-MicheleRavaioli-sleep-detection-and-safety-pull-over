@@ -72,10 +72,10 @@ try:
         pygame_io=io,
         vehicle=vehicle,
         destination=destination,
+        map=map,
+        meters_for_safe_pullover=50,
         driver_camera_stream=driver_camera_stream,
-        logging_config=VehicleLoggingConfig(
-            log_main_vehicle_controls=True,
-        ),
+        logging_config=VehicleLoggingConfig(log_entries=True),
     )
 
     should_exit = False

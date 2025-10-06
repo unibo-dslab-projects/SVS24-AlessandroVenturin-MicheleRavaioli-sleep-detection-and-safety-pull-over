@@ -2,7 +2,7 @@ from enum import StrEnum, auto
 from typing import cast, override
 
 import pygame
-from carla import Location, Vector3D, Vehicle, VehicleControl
+from carla import Location, Map, Vector3D, Vehicle, VehicleControl
 
 from agents.navigation.basic_agent import BasicAgent
 from inattention.detector import InattentionDetector
@@ -23,6 +23,8 @@ from vehicle_logging_config import VehicleLoggingConfig
 class VehicleData:
     logging_config: VehicleLoggingConfig
     destination: Location
+    map: Map
+    meters_for_safe_pullover: float
 
     speed: Vector3D = Vector3D()
 
@@ -47,6 +49,8 @@ class VehicleData:
         pygame_io: PygameIO,
         vehicle: Vehicle,
         destination: Location,
+        map: Map,
+        meters_for_safe_pullover: float,
         driver_camera_stream: CameraStream,
         logging_config: VehicleLoggingConfig | None,
     ):
@@ -55,6 +59,8 @@ class VehicleData:
         else:
             self.logging_config = logging_config
         self.destination = destination
+        self.map = map
+        self.meters_for_safe_pullover = meters_for_safe_pullover
         self.vehicle = vehicle
         self.cruise_control_agent = BasicAgent(self.vehicle)
         self.cruise_control_agent.ignore_traffic_lights()
@@ -88,6 +94,8 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
         pygame_io: PygameIO,
         vehicle: Vehicle,
         destination: Location,
+        map: Map,
+        meters_for_safe_pullover: float,
         driver_camera_stream: CameraStream,
         logging_config: VehicleLoggingConfig | None = None,
     ):
@@ -97,6 +105,8 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
                 pygame_io=pygame_io,
                 vehicle=vehicle,
                 destination=destination,
+                map=map,
+                meters_for_safe_pullover=meters_for_safe_pullover,
                 driver_camera_stream=driver_camera_stream,
                 logging_config=logging_config,
             ),
@@ -277,6 +287,13 @@ def _pull_over_is_safe(data: VehicleData) -> bool:
     # TODO
     return False
 
+def _exit_detected(data: VehicleData)-> bool:
+    curr_waypoint = data.map.get_waypoint(data.vehicle.get_location())
+    for m in range(1, int(data.meters_for_safe_pullover)):
+        available_paths = curr_waypoint.next(m)
+        if available_paths.__len__() > 1:
+            return True
+    return False
 
 class PullOverPreparationS(VehicleState):
     @override
@@ -290,7 +307,24 @@ class PullOverPreparationS(VehicleState):
 
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
-        data.cruise_control_agent.set_target_speed(50)
+        data.cruise_control_agent.set_target_speed(50)  # pyright: ignore[reportUnknownMemberType]
+
+    @override
+    def actions(self) -> list[VehicleStateAction]:
+        return [
+            VehicleStateAction(
+                condition=lambda data, ctx: _exit_detected(data),
+                action=lambda data, ctx: print(
+                    f"Exit detected in {data.meters_for_safe_pullover} meters"
+                ),
+            )
+        ]
+
+    @override
+    def on_do(self, data: VehicleData, ctx: VehicleContext):
+        # TODO: choose appropriate speed and braking power
+        if data.speed.length() > 50 / 3.6:
+            data.vehicle_control.brake = 0.2
 
 
 # ========== PULLING_OVER ==========
