@@ -20,20 +20,22 @@ from state_machine.sync_state_machine import (
 )
 from vehicle_logging_config import VehicleLoggingConfig
 
+
 class VehicleParams:
     destination: Location
     meters_for_safe_pullover: float
-    cruise_target_speed: float
+    cruise_target_speed_kmh: float
 
     def __init__(
         self,
         destination: Location,
         meters_for_safe_pullover: float,
-        cruise_target_speed: float,
+        cruise_target_speed_kmh: float,
     ):
         self.destination = destination
         self.meters_for_safe_pullover = meters_for_safe_pullover
-        self.cruise_target_speed = cruise_target_speed
+        self.cruise_target_speed_kmh = cruise_target_speed_kmh
+
 
 class VehicleData:
     logging_config: VehicleLoggingConfig
@@ -234,7 +236,8 @@ class CruiseControlS(VehicleState):
             data.vehicle, map_inst=data.map, grp_inst=data.global_route_planner
         )
         data.cruise_control_agent.ignore_traffic_lights()
-        data.cruise_control_agent.set_target_speed(data.params.cruise_target_speed)  # pyright: ignore[reportUnknownMemberType]
+        data.cruise_control_agent.follow_speed_limits(False)
+        data.cruise_control_agent.set_target_speed(data.params.cruise_target_speed_kmh)  # pyright: ignore[reportUnknownMemberType]
         data.cruise_control_agent.set_destination(data.params.destination)
 
     @override
@@ -307,13 +310,15 @@ def _pull_over_is_safe(data: VehicleData) -> bool:
     # TODO
     return False
 
-def _exit_detected(data: VehicleData)-> bool:
+
+def _exit_detected(data: VehicleData) -> bool:
     curr_waypoint = data.map.get_waypoint(data.vehicle.get_location())
     for m in range(1, int(data.params.meters_for_safe_pullover)):
         available_paths = curr_waypoint.next(m)
         if available_paths.__len__() > 1:
             return True
     return False
+
 
 class PullOverPreparationS(VehicleState):
     @override
@@ -341,6 +346,7 @@ class PullOverPreparationS(VehicleState):
                 ),
             )
         ]
+
 
 # ========== PULLING_OVER ==========
 
