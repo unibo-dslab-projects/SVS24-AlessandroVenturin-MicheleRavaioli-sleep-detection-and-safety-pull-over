@@ -301,7 +301,9 @@ class PullOverPreparationS(VehicleState):
         return [
             VehicleTransition(
                 to=PullingOverS(),
-                condition=lambda data, ctx: _pull_over_is_safe(data),
+                condition=lambda data, ctx: (
+                    _pull_over_is_safe(data) and data.speed.length() <= 50
+                ),
             )
         ]
 
