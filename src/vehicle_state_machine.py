@@ -316,8 +316,8 @@ class InattentionDetectedS(VehicleState):
 
 
 def _pull_over_is_safe(data: VehicleData) -> bool:
-    # TODO
-    return False
+    # TODO add check of obstacles
+    return not _junction_detected(data)
 
 
 def _waypoints_roughly_same_direction(w1: Waypoint, w2: Waypoint) -> bool:
