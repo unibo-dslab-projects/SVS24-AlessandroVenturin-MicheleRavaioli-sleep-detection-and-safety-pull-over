@@ -463,15 +463,12 @@ class EmergencyLaneNotReachedS(VehicleState):
                 data.vehicle_control.brake = max(
                     data.last_step_vehicle_control.brake - 0.1, 0
                 )
-            elif accel_delta < 0.1:
+            else:
                 data.vehicle_control.brake = min(
                     data.last_step_vehicle_control.brake + 0.1, 1
                 )
-
-            # print("acceleration:", data.acceleration)
-            # print("acceleration delta:", accel_delta)
-            print("speed :", data.speed.length() * 3.6)
-            print("brakes:", data.vehicle_control.brake)
+        elif data.speed.length() < (8 / 3.6):
+            data.vehicle_control.throttle = 1
 
         # TODO: activate turn signals
         # TODO: amount of steering should be adjusted based on:
