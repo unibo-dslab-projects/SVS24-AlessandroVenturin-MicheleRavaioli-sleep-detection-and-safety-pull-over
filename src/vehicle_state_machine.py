@@ -1,11 +1,14 @@
 from enum import StrEnum, auto
+import math
 from typing import cast, override
 
 import pygame
 from carla import (
+    Color,
     LaneType,
     Location,
     Map,
+    Transform,
     Vector3D,
     Vehicle,
     VehicleControl,
@@ -440,10 +443,35 @@ class PullingOverS(VehicleState):
         return [EmergencyLaneNotReachedS(), EmergencyLaneReachedS()]
 
 
-def _emergency_lane_reached(data: VehicleData) -> bool:
-    # TODO
-    return False
+def _signed_lateral_distance(of: Location, to: Transform) -> float:
+    target_rotation = to.rotation
+    yaw_rad = math.radians(target_rotation.yaw)
+    right_vector = Vector3D(-math.sin(yaw_rad), math.cos(yaw_rad), 0)
+    offset_vector = of - to.location
+    return offset_vector.dot(right_vector)
 
+def _emergency_lane_reached(data: VehicleData) -> bool:
+    vehicle_t = data.vehicle.get_transform()
+    vehicle_half_lenght = data.vehicle.bounding_box.extent.x
+    vehicle_front = Location(
+        vehicle_t.location + vehicle_t.get_forward_vector() * vehicle_half_lenght
+    )
+    waypoint = data.map.get_waypoint(vehicle_front, lane_type=LaneType.Any)
+    signed_lateral_distance = _signed_lateral_distance(
+        vehicle_front, waypoint.transform
+    )
+    return waypoint.lane_type == LaneType.Shoulder and signed_lateral_distance >= 0
+
+def _brake_to_target_deceleration(data: VehicleData):
+    accel_delta = data.params.pulling_over_acceleration - data.acceleration
+    if accel_delta > 0.1:
+        data.vehicle_control.brake = max(
+            data.last_step_vehicle_control.brake - 0.1, 0
+        )
+    else:
+        data.vehicle_control.brake = min(
+            data.last_step_vehicle_control.brake + 0.1, 1
+        )
 
 class EmergencyLaneNotReachedS(VehicleState):
     @override
@@ -458,23 +486,19 @@ class EmergencyLaneNotReachedS(VehicleState):
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         if data.speed.length() > (10 / 3.6):
-            accel_delta = data.params.pulling_over_acceleration - data.acceleration
-            if accel_delta > 0.1:
-                data.vehicle_control.brake = max(
-                    data.last_step_vehicle_control.brake - 0.1, 0
-                )
-            else:
-                data.vehicle_control.brake = min(
-                    data.last_step_vehicle_control.brake + 0.1, 1
-                )
+            _brake_to_target_deceleration(data)
         elif data.speed.length() < (8 / 3.6):
             data.vehicle_control.throttle = 1
+
+
+        # Should be roughly between 0 and 1
+        speed_coeff = data.speed.length() / (50 / 3.6)
 
         # TODO: activate turn signals
         # TODO: amount of steering should be adjusted based on:
         #       - vehicle speed
         #       - how fast the vehicle is approaching the guardrail
-        # data.vehicle_control.steer  0.05
+        data.vehicle_control.steer = 0.2 * (1 - speed_coeff)
 
 
 class EmergencyLaneReachedS(VehicleState):
@@ -489,8 +513,26 @@ class EmergencyLaneReachedS(VehicleState):
 
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
-        # TODO: choose appropriate braking power
-        data.vehicle_control.brake = 0.2
+        waypoint = data.map.get_waypoint(data.vehicle.get_location())
+        if waypoint.transform.get_forward_vector().dot(data.vehicle.get_transform().get_forward_vector()) < 0.90:
+            if data.speed.length() > (10 / 3.6):
+                _brake_to_target_deceleration(data)
+            elif data.speed.length() < (8 / 3.6):
+                data.vehicle_control.throttle = 1
+
+            # Should be roughly between 0 and 1
+            speed_coeff = data.speed.length() / (50 / 3.6)
+
+            lane_w = data.map.get_waypoint(
+                data.vehicle.get_location(), lane_type=LaneType.Any
+            )
+            data.vehicle_control.steer = -_signed_lateral_distance(
+                data.vehicle.get_location(), lane_w.transform
+            ) * (1 - speed_coeff)
+
+        else:
+            _brake_to_target_deceleration(data)
+
 
         # TODO: maybe it would be good to continue adjusting the
         #       steering in order not to exit the emergency lane
