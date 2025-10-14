@@ -465,16 +465,58 @@ def _emergency_lane_reached(data: VehicleData) -> bool:
     )
     return waypoint.lane_type == LaneType.Shoulder and signed_lateral_distance >= 0
 
-def _brake_to_target_deceleration(data: VehicleData):
+def _value_between_0_and_1(a: float) -> float:
+    return min(max(a, 0), 1)
+
+def _brake_to_target_deceleration(data: VehicleData, ctx: VehicleContext):
     accel_delta = data.params.pulling_over_acceleration - data.acceleration
-    if accel_delta > 0.1:
-        data.vehicle_control.brake = max(
-            data.last_step_vehicle_control.brake - 0.1, 0
-        )
+    braking_aggressiveness = 4  # Coefficient to finetune
+    brake = (
+        data.last_step_vehicle_control.brake
+        - accel_delta * ctx.dt * braking_aggressiveness
+    )
+
+    # We can set neutral and just brake
+    data.vehicle_control.manual_gear_shift = True
+    data.vehicle_control.gear = 0
+    data.vehicle_control.brake = _value_between_0_and_1(brake)
+
+    # # Or we can try to balance brakes and throttle
+    # # It is a bit less precise due to engine brake changing with gears
+    # throttle_aggressiveness = 2  # Coefficient to finetune
+    # throttle = (
+    #     data.last_step_vehicle_control.throttle
+    #     + accel_delta * ctx.dt * throttle_aggressiveness
+    # )
+    # if accel_delta > 0:
+    #     # Need to accelerate
+    #     if data.last_step_vehicle_control.brake > 0:
+    #         data.vehicle_control.brake = _value_between_0_and_1(brake)
+    #     else:
+    #         data.vehicle_control.throttle = _value_between_0_and_1(throttle)
+    # else:
+    #     # Need to decelerate
+    #     if data.last_step_vehicle_control.throttle > 0:
+    #         data.vehicle_control.throttle = _value_between_0_and_1(throttle)
+    #     else:
+    #         data.vehicle_control.brake = _value_between_0_and_1(brake)
+
+def _accelerate_to_target_speed(
+    data: VehicleData, ctx: VehicleContext, target_speed_kmh: float
+):
+    speed_delta = (target_speed_kmh / 3.6) - data.speed.length()
+    throttle_aggressiveness = 2  # Coefficient to finetune
+    throttle = (
+        data.last_step_vehicle_control.throttle
+        + speed_delta * throttle_aggressiveness * ctx.dt
+    )
+    data.vehicle_control.throttle = _value_between_0_and_1(throttle)
+
+def _keep_target_speed(data: VehicleData, ctx: VehicleContext, speed_kmh: float):
+    if data.speed.length() * 3.6 > speed_kmh:
+        _brake_to_target_deceleration(data, ctx)
     else:
-        data.vehicle_control.brake = min(
-            data.last_step_vehicle_control.brake + 0.1, 1
-        )
+        _accelerate_to_target_speed(data, ctx, speed_kmh - 2)
 
 class EmergencyLaneNotReachedS(VehicleState):
     @override
@@ -488,11 +530,7 @@ class EmergencyLaneNotReachedS(VehicleState):
 
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
-        if data.speed.length() > (10 / 3.6):
-            _brake_to_target_deceleration(data)
-        elif data.speed.length() < (8 / 3.6):
-            data.vehicle_control.throttle = 1
-
+        _keep_target_speed(data, ctx, 10)
 
         # Should be roughly between 0 and 1
         speed_coeff = data.speed.length() / (50 / 3.6)
@@ -501,7 +539,7 @@ class EmergencyLaneNotReachedS(VehicleState):
         # TODO: amount of steering should be adjusted based on:
         #       - vehicle speed
         #       - how fast the vehicle is approaching the guardrail
-        data.vehicle_control.steer = 0.5 * (1 - speed_coeff)
+        data.vehicle_control.steer = 0.1 * (1 - speed_coeff)
 
 
 class EmergencyLaneReachedS(VehicleState):
@@ -517,11 +555,8 @@ class EmergencyLaneReachedS(VehicleState):
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         waypoint = data.map.get_waypoint(data.vehicle.get_location())
-        if waypoint.transform.get_forward_vector().dot(data.vehicle.get_transform().get_forward_vector()) < 0.95:
-            if data.speed.length() > (10 / 3.6):
-                _brake_to_target_deceleration(data)
-            elif data.speed.length() < (8 / 3.6):
-                data.vehicle_control.throttle = 1
+        if waypoint.transform.get_forward_vector().dot(data.vehicle.get_transform().get_forward_vector()) < 0.999:
+            _keep_target_speed(data, ctx, 10)
 
             # Should be roughly between 0 and 1
             speed_coeff = data.speed.length() / (50 / 3.6)
@@ -533,7 +568,8 @@ class EmergencyLaneReachedS(VehicleState):
             ) * (1 - speed_coeff)
 
         else:
-            _brake_to_target_deceleration(data)
+            # _brake_to_target_deceleration(data, ctx)
+            _keep_target_speed(data, ctx, 0)
 
 
         # TODO: maybe it would be good to continue adjusting the
