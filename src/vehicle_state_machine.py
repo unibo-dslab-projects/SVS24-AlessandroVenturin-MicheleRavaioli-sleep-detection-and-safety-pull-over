@@ -450,12 +450,15 @@ def _signed_lateral_distance(of: Location, to: Transform) -> float:
     offset_vector = of - to.location
     return offset_vector.dot(right_vector)
 
-def _emergency_lane_reached(data: VehicleData) -> bool:
+def _vehicle_front(data: VehicleData) -> Location:
     vehicle_t = data.vehicle.get_transform()
     vehicle_half_lenght = data.vehicle.bounding_box.extent.x
-    vehicle_front = Location(
+    return Location(
         vehicle_t.location + vehicle_t.get_forward_vector() * vehicle_half_lenght
     )
+
+def _emergency_lane_reached(data: VehicleData) -> bool:
+    vehicle_front = _vehicle_front(data)
     waypoint = data.map.get_waypoint(vehicle_front, lane_type=LaneType.Any)
     signed_lateral_distance = _signed_lateral_distance(
         vehicle_front, waypoint.transform
@@ -498,7 +501,7 @@ class EmergencyLaneNotReachedS(VehicleState):
         # TODO: amount of steering should be adjusted based on:
         #       - vehicle speed
         #       - how fast the vehicle is approaching the guardrail
-        data.vehicle_control.steer = 0.2 * (1 - speed_coeff)
+        data.vehicle_control.steer = 0.5 * (1 - speed_coeff)
 
 
 class EmergencyLaneReachedS(VehicleState):
@@ -514,7 +517,7 @@ class EmergencyLaneReachedS(VehicleState):
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         waypoint = data.map.get_waypoint(data.vehicle.get_location())
-        if waypoint.transform.get_forward_vector().dot(data.vehicle.get_transform().get_forward_vector()) < 0.90:
+        if waypoint.transform.get_forward_vector().dot(data.vehicle.get_transform().get_forward_vector()) < 0.95:
             if data.speed.length() > (10 / 3.6):
                 _brake_to_target_deceleration(data)
             elif data.speed.length() < (8 / 3.6):
@@ -523,11 +526,10 @@ class EmergencyLaneReachedS(VehicleState):
             # Should be roughly between 0 and 1
             speed_coeff = data.speed.length() / (50 / 3.6)
 
-            lane_w = data.map.get_waypoint(
-                data.vehicle.get_location(), lane_type=LaneType.Any
-            )
+            vehicle_front = _vehicle_front(data)
+            lane_w = data.map.get_waypoint(vehicle_front, lane_type=LaneType.Any)
             data.vehicle_control.steer = -_signed_lateral_distance(
-                data.vehicle.get_location(), lane_w.transform
+                vehicle_front, lane_w.transform
             ) * (1 - speed_coeff)
 
         else:
