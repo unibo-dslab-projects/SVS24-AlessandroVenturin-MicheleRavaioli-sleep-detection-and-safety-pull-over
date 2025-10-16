@@ -601,7 +601,7 @@ class EmergencyLaneReachedS(VehicleState):
         return [
             VehicleTransition(
                 to=StoppedS(),
-                condition=lambda data, ctx: data.speed_kmh <= 0,
+                condition=lambda data, ctx: data.speed_kmh <= 0.5,
             )
         ]
 
@@ -645,5 +645,6 @@ class EmergencyLaneReachedS(VehicleState):
 class StoppedS(VehicleState):
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
+        data.vehicle_control.hand_brake = True
         # TODO: activate emergency signals
         ...
