@@ -1,5 +1,5 @@
-from enum import StrEnum, auto
 import math
+from enum import StrEnum, auto
 from typing import cast, override
 
 import pygame
@@ -92,8 +92,6 @@ class VehicleData:
     map: Map
     params: VehicleParams
 
-    acceleration: float = 0
-    last_step_speed: Vector3D = Vector3D()
     speed: Vector3D = Vector3D()
 
     @property
@@ -101,11 +99,14 @@ class VehicleData:
         return self.speed.length() * 3.6
 
     vehicle: Vehicle
-    vehicle_control: VehicleControl = VehicleControl()
     vehicle_ackermann_control: VehicleAckermannControl | None = None
-    last_step_vehicle_control: VehicleControl = VehicleControl()
+    """
+    Applied a the end of each step only if not None
+    """
+    vehicle_control: VehicleControl = VehicleControl()
     """
     The Vehicle control to be applied at the end of each step
+    Can be overridden by setting vehicle_ackermann_control != None
     """
     pygame_io: PygameIO
     manual_control: PygameVehicleControl
@@ -192,8 +193,8 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
         result = super().step(dt)
         if self._vehicle_logging_config().log_main_vehicle_controls:
             control = self._data.vehicle.get_control()
-            self._vehicle_log("accel:", self._data.acceleration)
-            self._vehicle_log("speed:", self._data.speed.length() * 3.6, "km/h")
+            self._vehicle_log("accel:", self._data.vehicle.get_acceleration())
+            self._vehicle_log("speed:", self._data.speed_kmh, "km/h")
             self._vehicle_log("throt:", control.throttle)
             self._vehicle_log("brake:", control.brake)
             self._vehicle_log("steer:", control.steer)
@@ -215,12 +216,7 @@ class WrapperS(State[VehicleData, VehicleTimers]):
 
     @override
     def on_early_do(self, data: VehicleData, ctx: VehicleContext):
-        data.last_step_speed = data.speed
         data.speed = data.vehicle.get_velocity()
-        data.acceleration = (
-            data.speed.length() - data.last_step_speed.length()
-        ) / ctx.dt
-        data.last_step_vehicle_control = data.vehicle_control
         data.vehicle_control = VehicleControl()
         data.vehicle_ackermann_control = None
         data.pygame_events = data.pygame_io.update()
