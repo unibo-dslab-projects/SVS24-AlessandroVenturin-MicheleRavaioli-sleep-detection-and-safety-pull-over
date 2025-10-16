@@ -75,9 +75,10 @@ try:
         map=map,
         params=VehicleParams(
             destination=destination,
-            meters_for_safe_pullover=50,
+            sensors_max_range=50,
             cruise_target_speed_kmh=100,
-            pulling_over_acceleration=-2.0,
+            pull_over_acceleration=-2.0,
+            min_pull_over_speed_kmh=10,
         ),
         driver_camera_stream=driver_camera_stream,
         logging_config=VehicleLoggingConfig(log_entries=True),

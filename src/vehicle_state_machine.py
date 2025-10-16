@@ -36,21 +36,54 @@ from vehicle_logging_config import VehicleLoggingConfig
 
 class VehicleParams:
     destination: Location
-    meters_for_safe_pullover: float
+    sensors_max_range: float
+    """
+    Maximum forward range for sensors regarding safety pull over.
+    """
     cruise_target_speed_kmh: float
-    pulling_over_acceleration: float
+    """
+    Speed to target for the cruise control system
+    Must be >= 0.
+    """
+    pull_over_acceleration: float
+    """
+    Target braking acceleration for the vehicle while pulling over.
+    Must be < 0.
+    """
+    max_pull_over_preparation_speed_kmh: float
+    """
+    Maximum speed at which the vehicle can start pulling over in order to
+    stop withing the window allowed by the sensors range
+    """
+    min_pull_over_speed_kmh: float
+    """
+    Minimum speed to keep while performin the pull over.
+    """
 
     def __init__(
         self,
         destination: Location,
-        meters_for_safe_pullover: float,
+        sensors_max_range: float,
         cruise_target_speed_kmh: float,
-        pulling_over_acceleration: float,
+        pull_over_acceleration: float,
+        min_pull_over_speed_kmh: float,
     ):
         self.destination = destination
-        self.meters_for_safe_pullover = meters_for_safe_pullover
+        self.sensors_max_range = sensors_max_range
+        if cruise_target_speed_kmh < 0:
+            raise Exception("cruise target speed must be positive or 0")
         self.cruise_target_speed_kmh = cruise_target_speed_kmh
-        self.pulling_over_acceleration = pulling_over_acceleration
+        if pull_over_acceleration >= 0:
+            raise Exception("pull over acceleration must be negative")
+        self.pull_over_acceleration = pull_over_acceleration
+        self.max_pull_over_preparation_speed_kmh = (
+            math.sqrt(2 * -self.pull_over_acceleration * self.sensors_max_range) * 3.6
+        )
+        if min_pull_over_speed_kmh > self.max_pull_over_preparation_speed_kmh:
+            raise Exception(
+                "Incompatible parameters, minimum pull over speed is too high"
+            )
+        self.min_pull_over_speed_kmh = min_pull_over_speed_kmh
 
 
 class VehicleData:
@@ -59,9 +92,13 @@ class VehicleData:
     map: Map
     params: VehicleParams
 
+    acceleration: float = 0
     last_step_speed: Vector3D = Vector3D()
     speed: Vector3D = Vector3D()
-    acceleration: float = 0
+
+    @property
+    def speed_kmh(self) -> float:
+        return self.speed.length() * 3.6
 
     vehicle: Vehicle
     vehicle_control: VehicleControl = VehicleControl()
@@ -351,6 +388,7 @@ def _waypoints_roughly_same_direction(w1: Waypoint, w2: Waypoint) -> bool:
 def _waypoints_same_road(w1: Waypoint, w2: Waypoint) -> bool:
     return w1.road_id == w2.road_id
 
+
 def _junction_detected(data: VehicleData) -> bool:
     # We use the target waypoint as getting a waypoint under the vehicle position
     # may return a waypoint that is part of another overlapping lane
@@ -372,11 +410,18 @@ def _junction_detected(data: VehicleData) -> bool:
     # Here we compute N waypoints ahead of the vehicle to check if they are part of a junction
     waypoints = [curr_waypoint]
 
-    # Here get waypoints ahead of the vehicle every 10 meters up to the specified distance
-    # Highway junctions in carla are never shorter than 10 meters
+    # Here get waypoints ahead of the vehicle at least every 10 meters up to they
+    # specified distance. Highway junctions in carla are never shorter than 10 meters
+    # We choose a large interval in order to not overload the simulation, but in real life
+    # we would prioritize safety and reduce this interval
     meters_ahead = 0
-    while meters_ahead < data.params.meters_for_safe_pullover:
-        meters_ahead = meters_ahead + 10
+    if data.params.sensors_max_range / 3 > 10:
+        increment = 10
+    else:
+        increment = data.params.sensors_max_range / 3
+    while meters_ahead < data.params.sensors_max_range:
+        # Ensuring not to exceed the maximum range
+        meters_ahead = min(meters_ahead + increment, data.params.sensors_max_range)
         w = next(
             filter(
                 lambda w: w.lane_id == curr_waypoint.lane_id,
@@ -422,14 +467,18 @@ class PullOverPreparationS(VehicleState):
             VehicleTransition(
                 to=PullingOverS(),
                 condition=lambda data, ctx: (
-                    _pull_over_is_safe(data) and data.speed.length() <= 50 / 3.6
+                    _pull_over_is_safe(data)
+                    and data.speed_kmh
+                    <= data.params.max_pull_over_preparation_speed_kmh
                 ),
             )
         ]
 
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
-        data.cruise_control_agent.set_target_speed(50)  # pyright: ignore[reportUnknownMemberType]
+        data.cruise_control_agent.set_target_speed(  # pyright: ignore[reportUnknownMemberType]
+            data.params.max_pull_over_preparation_speed_kmh
+        )
 
     @override
     def actions(self) -> list[VehicleStateAction]:
@@ -459,12 +508,14 @@ def _signed_lateral_distance(of: Location, to: Transform) -> float:
     offset_vector = of - to.location
     return offset_vector.dot(right_vector)
 
+
 def _vehicle_front(data: VehicleData) -> Location:
     vehicle_t = data.vehicle.get_transform()
     vehicle_half_lenght = data.vehicle.bounding_box.extent.x
     return Location(
         vehicle_t.location + vehicle_t.get_forward_vector() * vehicle_half_lenght
     )
+
 
 def _emergency_lane_reached(data: VehicleData) -> bool:
     vehicle_front = _vehicle_front(data)
@@ -474,17 +525,22 @@ def _emergency_lane_reached(data: VehicleData) -> bool:
     )
     return waypoint.lane_type == LaneType.Shoulder and signed_lateral_distance >= 0
 
-def _clamp(a: float, min_:float, max_:float) -> float:
+
+def _clamp(a: float, min_: float, max_: float) -> float:
     return min(max(a, min_), max_)
+
 
 def _steer_to_radians(data: VehicleData, steer: float) -> float:
     max_steer_angle_deg = data.vehicle.get_physics_control().wheels[0].max_steer_angle
     steer = _clamp(steer, -1, 1)
     return math.radians(max_steer_angle_deg) * steer
 
+
 def _keep_target_speed(data: VehicleData, speed_kmh: float):
     speed_ms = speed_kmh / 3.6
-    if data.speed.length() > speed_ms + 1:
+    if (
+        data.speed.length() > speed_ms + 1
+    ):  # a bit of tolerance to avoid oscillating behavior
         data.vehicle.apply_ackermann_controller_settings(  # pyright: ignore[reportUnknownMemberType]
             AckermannControllerSettings(  # pyright: ignore[reportArgumentType]
                 speed_kp=0.15,
@@ -495,7 +551,7 @@ def _keep_target_speed(data: VehicleData, speed_kmh: float):
                 accel_kd=0.2,
             )
         )
-        acc = -2
+        acc = data.params.pull_over_acceleration
     else:
         # Reset settings to default
         data.vehicle.apply_ackermann_controller_settings(  # pyright: ignore[reportUnknownMemberType]
@@ -513,6 +569,7 @@ def _keep_target_speed(data: VehicleData, speed_kmh: float):
         acceleration=acc, speed=speed_ms
     )
 
+
 class EmergencyLaneNotReachedS(VehicleState):
     @override
     def transitions(self) -> list[VehicleTransition]:
@@ -525,13 +582,15 @@ class EmergencyLaneNotReachedS(VehicleState):
 
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
-        _keep_target_speed(data, 10)
+        _keep_target_speed(data, data.params.min_pull_over_speed_kmh)
 
         # Should be roughly between 0 and 1
-        speed_coeff = data.speed.length() / (50 / 3.6)
+        speed_coeff = data.speed_kmh / 50
 
         # TODO: activate turn signals
-        data.vehicle_ackermann_control.steer = _steer_to_radians(data, 0.1 * (1 - speed_coeff))
+        data.vehicle_ackermann_control.steer = _steer_to_radians(
+            data, 0.1 * (1 - speed_coeff)
+        )
 
 
 class EmergencyLaneReachedS(VehicleState):
@@ -540,7 +599,7 @@ class EmergencyLaneReachedS(VehicleState):
         return [
             VehicleTransition(
                 to=StoppedS(),
-                condition=lambda data, ctx: data.speed.length() <= 0,
+                condition=lambda data, ctx: data.speed_kmh <= 0,
             )
         ]
 
@@ -553,12 +612,12 @@ class EmergencyLaneReachedS(VehicleState):
             )
             < 0.999
         ):
-            _keep_target_speed(data, 10)
+            _keep_target_speed(data, data.params.min_pull_over_speed_kmh)
         else:
             _keep_target_speed(data, 0)
 
         # Should be roughly between 0 and 1
-        speed_coeff = data.speed.length() / (50 / 3.6)
+        speed_coeff = data.speed_kmh / 50
 
         vehicle_front = _vehicle_front(data)
         lane_w = data.map.get_waypoint(vehicle_front, lane_type=LaneType.Any)
