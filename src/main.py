@@ -59,7 +59,6 @@ try:
         # Bind camera to pygame window
         camera.listen(lambda image: io.prepare_output_image(cast(Image, image)))
 
-
     # Getting driver camera (webcam)
     driver_camera_stream = WebcamCameraStream(device=0, width=600, height=480)
 
@@ -102,9 +101,9 @@ try:
 
         # Apply the offset in the vehicle's local coordinate space
         offset = (
-            forward_vector * CAMERA_LOCATION_OFFSET.x +
-            right_vector   * CAMERA_LOCATION_OFFSET.y +
-            up_vector      * CAMERA_LOCATION_OFFSET.z
+            forward_vector * CAMERA_LOCATION_OFFSET.x
+            + right_vector * CAMERA_LOCATION_OFFSET.y
+            + up_vector * CAMERA_LOCATION_OFFSET.z
         )
         camera_location = vehicle_transform.location
         camera_location = Location(camera_location + offset)
