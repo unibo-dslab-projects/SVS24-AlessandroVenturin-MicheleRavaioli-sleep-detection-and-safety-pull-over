@@ -113,7 +113,7 @@ class VehicleData:
     cruise_control_agent: BasicAgent
     global_route_planner: GlobalRoutePlanner
 
-    pull_over_potential_field_coeff = 1
+    pull_over_potential_field_coeff = 1.1
     road_margin_repulsive_potential_field_coeff = 2
 
     inattention_detector: InattentionDetector
