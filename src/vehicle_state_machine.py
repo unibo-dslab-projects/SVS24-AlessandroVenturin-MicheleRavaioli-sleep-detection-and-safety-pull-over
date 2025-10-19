@@ -201,7 +201,12 @@ class VehicleStateMachine(SyncStateMachine[VehicleData, VehicleTimers]):
         result = super().step(dt)
         if self._vehicle_logging_config().log_main_vehicle_controls:
             control = self._data.vehicle.get_control()
-            self._vehicle_log("accel:", self._data.vehicle.get_acceleration())
+            acc = self._data.vehicle.get_acceleration()
+            acc_len = acc.length()
+            acc_len = (
+                acc_len if acc.dot(self._data.vehicle.get_velocity()) >= 0 else -acc_len
+            )
+            self._vehicle_log("accel:", acc_len, "m/s^2")
             self._vehicle_log("speed:", self._data.speed_kmh, "km/h")
             self._vehicle_log("throt:", control.throttle)
             self._vehicle_log("brake:", control.brake)
