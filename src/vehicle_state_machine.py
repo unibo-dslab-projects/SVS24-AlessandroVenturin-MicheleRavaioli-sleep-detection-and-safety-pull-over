@@ -614,6 +614,10 @@ def _steer_to_radians(data: VehicleData, steer: float) -> float:
 
 
 def _keep_target_speed(data: VehicleData, speed_kmh: float):
+    """
+    Keeps the target speed, if that requires to decelerate it will not exceed the
+    maximum deceleration set in VehicleParams
+    """
     speed_ms = speed_kmh / 3.6
     if (
         data.speed.length() > speed_ms + 1
