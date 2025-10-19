@@ -51,6 +51,9 @@ class VehicleParams:
     Must be < 0.
     """
 
+    pull_over_potential_field_coeff: float = 1.1
+    road_margin_repulsive_potential_field_coeff: float = 2
+
     @property
     def max_pull_over_preparation_speed_kmh(self) -> float:
         """
@@ -77,6 +80,7 @@ class VehicleParams:
         if max_pull_over_acceleration >= 0:
             raise Exception("pull over acceleration must be negative")
         self.max_pull_over_acceleration = max_pull_over_acceleration
+
 
 class VehicleData:
     logging_config: VehicleLoggingConfig
@@ -112,9 +116,6 @@ class VehicleData:
     pygame_events: list[pygame.event.Event] = []
     cruise_control_agent: BasicAgent
     global_route_planner: GlobalRoutePlanner
-
-    pull_over_potential_field_coeff = 1.1
-    road_margin_repulsive_potential_field_coeff = 2
 
     inattention_detector: InattentionDetector
     """
@@ -453,8 +454,12 @@ def _first_junction_detected_distance(data: VehicleData) -> float | None:
                 return meters_ahead
         return None
 
+
 def _max_stopping_distance(data: VehicleData) -> float:
-    return (data.speed.length() ** 2) / (2 * abs(data.params.max_pull_over_acceleration))
+    return (data.speed.length() ** 2) / (
+        2 * abs(data.params.max_pull_over_acceleration)
+    )
+
 
 class PullOverPreparationS(VehicleState):
     @override
@@ -485,6 +490,7 @@ class PullOverPreparationS(VehicleState):
 
 
 # ========== PULLING_OVER ==========
+
 
 def _changeVehicleAckermannControl(
     control: VehicleAckermannControl,
@@ -549,12 +555,12 @@ class PullingOverS(VehicleState):
         signed_lateral_distance = _signed_lateral_distance(
             vehicle_front, lane_w.transform
         )
-        pull_over_field = data.pull_over_potential_field_coeff
+        pull_over_field = data.params.pull_over_potential_field_coeff
         distance_from_right_margin = signed_lateral_distance - lane_w.lane_width / 2
         counter_field = (
             1
             / distance_from_right_margin
-            * data.road_margin_repulsive_potential_field_coeff
+            * data.params.road_margin_repulsive_potential_field_coeff
         )
 
         # The steer must be adjusted with respect to the vehicle speed as a slower vehicle
@@ -569,6 +575,7 @@ class PullingOverS(VehicleState):
                 (pull_over_field + counter_field) * (1 - speed_coeff),
             ),
         )
+
 
 def _signed_lateral_distance(of: Location, to: Transform) -> float:
     target_rotation = to.rotation
@@ -652,7 +659,6 @@ class EmergencyLaneNotReachedS(VehicleState):
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         _keep_target_speed(data, 5)
-
 
 
 class EmergencyLaneReachedS(VehicleState):
