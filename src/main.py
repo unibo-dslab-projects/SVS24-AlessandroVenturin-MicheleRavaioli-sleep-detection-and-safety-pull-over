@@ -65,6 +65,17 @@ try:
     # Spawn vehicle
     vehicle = cast(Vehicle, world.spawn_actor(vehicle_bp, spawn_point))
 
+    # Spawn obstacles
+    _ = cast(
+        Vehicle,
+        world.spawn_actor(
+            vehicle_bp,
+            Transform(
+                Location(spawn_point.location + Location(x=-150, y=-2.5)),
+                spawn_point.rotation,
+            ),
+        ),
+    )
 
     if USE_PYGAME_CAMERA:
         camera = cast(Sensor, world.spawn_actor(camera_bp, Transform()))
