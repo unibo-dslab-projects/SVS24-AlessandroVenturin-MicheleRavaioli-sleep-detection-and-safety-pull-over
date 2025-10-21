@@ -12,7 +12,7 @@ from vehicle_state_machine import VehicleParams, VehicleStateMachine
 
 FRAMERATE = 20
 DT = 1 / FRAMERATE
-MAP = "Town12"
+MAP = "Town04"
 HIGHWAY_SPAWN_POINT = Transform(Location(x=1473, y=3077.5, z=365), Rotation(yaw=180))
 USE_PYGAME_CAMERA = False
 CAMERA_LOCATION_OFFSET = Location(x=-5, z=3)
@@ -35,6 +35,7 @@ if not map.name.endswith(MAP):
     world = client.load_world(MAP)
     map = world.get_map()
 
+spawn_point = map.get_spawn_points()[0]
 spectator = world.get_spectator()
 spectator.set_location(HIGHWAY_SPAWN_POINT.location)  # pyright: ignore[reportUnknownMemberType]
 
