@@ -35,6 +35,11 @@ if not map.name.endswith(MAP):
     world = client.load_world(MAP)
     map = world.get_map()
 
+spectator = world.get_spectator()
+spectator.set_location(HIGHWAY_SPAWN_POINT.location)  # pyright: ignore[reportUnknownMemberType]
+
+_ = world.tick()
+
 # Set simulator to synchronous mode and fixed time step
 settings = world.get_settings()
 settings.synchronous_mode = True
@@ -86,13 +91,16 @@ try:
     # Getting driver camera (webcam)
     driver_camera_stream = WebcamCameraStream(device=0, width=600, height=480)
 
-    _ = world.tick()  # fixes bug: https://github.com/carla-simulator/carla/issues/2634
-
-    spectator = world.get_spectator()
-    spectator.set_location(vehicle.get_location())  # pyright: ignore[reportUnknownMemberType]
-
     # Spawn radar
-    front_radar = cast(Sensor, world.spawn_actor(radar_bp, radar_transform))
+    front_radar = cast(
+        Sensor,
+        world.spawn_actor(
+            radar_bp,
+            radar_transform,
+            attach_to=vehicle,
+            attachment_type=AttachmentType.Rigid,
+        ),
+    )
 
     state_machine = VehicleStateMachine(
         pygame_io=io,
@@ -149,11 +157,6 @@ try:
         if camera is not None:
             camera.set_transform(camera_transform)  # pyright: ignore[reportUnknownMemberType]
         spectator.set_transform(camera_transform)  # pyright: ignore[reportUnknownMemberType]
-        front_radar.set_transform(  # pyright: ignore[reportUnknownMemberType]
-            move_to_with_local_offsets(
-                vehicle_transform, radar_location, radar_rotation
-            )
-        )
         world.debug.draw_string(front_radar.get_transform().location, "R")
 
         compute_time = time.time() - tick_start
