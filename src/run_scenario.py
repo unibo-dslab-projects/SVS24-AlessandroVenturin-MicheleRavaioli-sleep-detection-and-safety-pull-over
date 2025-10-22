@@ -1,6 +1,8 @@
 import os
 import time
+from tkinter import N
 from typing import cast
+from argparse import ArgumentParser
 
 from carla import AttachmentType, Client, Image, Location, Rotation, Sensor, Transform, Vehicle
 
@@ -12,17 +14,28 @@ from vehicle_state_machine import VehicleParams, VehicleStateMachine
 
 import scenarios
 
+parser = ArgumentParser("run_scenario")
+parser.add_argument("scenario_index", help=
+"The index of the scenario to run. defaults to 1.\n1) Empty straight road\n2) Empty curve\n3) Straight road with traffic\n4) Curve with traffic\n5) Traffic jam", type=int)
+args = parser.parse_args()
+
+def choose_scenario(i: int | None) -> scenarios.Scenario:
+    if i == 2:
+        return scenarios.EmptyCurveRoadScenario()
+    return scenarios.EmptyStraightRoadScenario()
+
+# Define scenario
+scenario = choose_scenario(args.scenario_index)
+
 FRAMERATE = 20
 DT = 1 / FRAMERATE
-MAP = "Town04"
-HIGHWAY_SPAWN_POINT = Transform(Location(x=1473, y=3077.5, z=365), Rotation(yaw=180))
+MAP = scenario.map_name
 USE_PYGAME_CAMERA = False
 CAMERA_LOCATION_OFFSET = Location(x=-5, z=3)
 CAMERA_PITCH = -20
 SENSORS_MAX_RANGE = 50
 RADAR_SCAN_WIDTH = 3
 
-spawn_point = HIGHWAY_SPAWN_POINT
 camera: Sensor | None = None
 
 host = os.environ.get("HOST", "localhost")
@@ -36,14 +49,6 @@ map = world.get_map()
 if not map.name.endswith(MAP):
     world = client.load_world(MAP)
     map = world.get_map()
-
-spawn_point = map.get_spawn_points()[349]
-print(spawn_point.location)
-print(spawn_point.rotation)
-spectator = world.get_spectator()
-spectator.set_location(HIGHWAY_SPAWN_POINT.location)  # pyright: ignore[reportUnknownMemberType]
-
-_ = world.tick()
 
 # Set simulator to synchronous mode and fixed time step
 settings = world.get_settings()
@@ -72,8 +77,9 @@ pygame_window_width = camera_bp.get_attribute("image_size_x").as_int()
 pygame_window_height = camera_bp.get_attribute("image_size_y").as_int()
 io = PygameIO(pygame_window_width, pygame_window_height)
 
-# Define scenario
-scenario = scenarios.EmptyStraightRoadScenario()
+spawn_point = scenario.spawn_point
+spectator = world.get_spectator()
+spectator.set_location(spawn_point.location)  # pyright: ignore[reportUnknownMemberType]
 
 try:
     # Spawn vehicle
@@ -158,7 +164,6 @@ try:
         if camera is not None:
             camera.set_transform(camera_transform)  # pyright: ignore[reportUnknownMemberType]
         spectator.set_transform(camera_transform)  # pyright: ignore[reportUnknownMemberType]
-        world.debug.draw_string(front_radar.get_transform().location, "R")
 
         compute_time = time.time() - tick_start
         should_exit = not state_machine.step(DT)

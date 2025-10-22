@@ -66,6 +66,11 @@ MAP04_STRAIGHT_ROAD_SPAWN_POINT = Transform(
     Rotation(pitch=0.000000, yaw=-0.368408, roll=0.000000)
 )
 
+MAP04_CURVE_ROAD_SPAWN_POINT = Transform(
+    Location(x=413.543457, y=-154.245117, z=1.226235),
+    Rotation(pitch=0.000000, yaw=-90.0000, roll=0.000000)
+)
+
 class EmptyStraightRoadScenario(Scenario):
     def __init__(self):
         p = MAP04_STRAIGHT_ROAD_SPAWN_POINT
@@ -108,6 +113,44 @@ class EmptyStraightRoadScenario(Scenario):
         super().__init__(
             map_name="Town04",
             spawn_point=MAP04_STRAIGHT_ROAD_SPAWN_POINT,
+            stopped_cars=self.obstacles,
+            moving_cars=[]
+            )
+
+class EmptyCurveRoadScenario(Scenario):
+    def __init__(self):
+        p = MAP04_CURVE_ROAD_SPAWN_POINT
+
+        self.obstacles = [
+            ("vehicle.chevrolet.impala", Transform(
+                Location(x=415.110840, y=-257.378632, z=1),
+                Rotation(pitch=3.933704, yaw=-97.159393, roll=0.000142)
+            )),
+            ("vehicle.citroen.c3", Transform(
+                Location(x=413.464325, y=-266.408203, z=1),
+                Rotation(pitch=0.061649, yaw=-102.561653, roll=0.000136)
+            )),
+            ("vehicle.audi.etron", Transform(
+                Location(x=407.646240, y=-287.340210, z=1),
+                Rotation(pitch=0.658635, yaw=-107.898689, roll=0.000138)
+            )),
+            ("vehicle.jeep.wrangler_rubicon", Transform(
+                Location(x=397.616119, y=-310.054382, z=1),
+                Rotation(pitch=0.314066, yaw=-117.047523, roll=0.000143)
+            )),
+            ("vehicle.volkswagen.t2_2021", Transform(
+                Location(x=358.977020, y=-358.655273, z=1),
+                Rotation(pitch=0.856130, yaw=-138.922958, roll=0.000021)
+            )),
+            ("vehicle.chevrolet.impala", Transform(
+                Location(x=350.295807, y=-365.557068, z=1),
+                Rotation(pitch=0.520057, yaw=-143.702698, roll=0.000022)
+            )),
+        ]
+
+        super().__init__(
+            map_name="Town04",
+            spawn_point=MAP04_CURVE_ROAD_SPAWN_POINT,
             stopped_cars=self.obstacles,
             moving_cars=[]
             )
