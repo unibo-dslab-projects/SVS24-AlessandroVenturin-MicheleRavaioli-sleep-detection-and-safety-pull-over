@@ -56,7 +56,7 @@ class VehicleParams:
     """
     radar_scan_width: float
 
-    pull_over_potential_field_coeff: float = 1.1
+    pull_over_potential_field_coeff: float = 1.45
     road_margin_repulsive_potential_field_coeff: float = 2
 
     @property
@@ -441,7 +441,8 @@ def _curr_waypoint(data:VehicleData) -> Waypoint:
         filter(
             lambda w: w.lane_id == target_waypoint.lane_id,
             target_waypoint.previous(distance_from_car),
-        )
+        ),
+        target_waypoint,  # Just to not crash if for some reason preconditions are not met
     )
 
 def _first_junction_detected_distance(data: VehicleData) -> float | None:
