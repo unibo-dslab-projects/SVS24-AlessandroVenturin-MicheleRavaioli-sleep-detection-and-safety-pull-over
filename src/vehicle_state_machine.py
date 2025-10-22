@@ -16,6 +16,7 @@ from carla import (
     VehicleAckermannControl,
     VehicleControl,
     VehicleWheelLocation,
+    VehicleLightState,
     Waypoint,
     World,
 )
@@ -567,6 +568,8 @@ class PullOverPreparationS(VehicleState):
 
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
+        light_state = data.vehicle.get_light_state()
+        data.vehicle.set_light_state(VehicleLightState(light_state | VehicleLightState.RightBlinker))
         data.traffic_manager.set_desired_speed(
             data.vehicle,
             min(data.params.max_pull_over_preparation_speed_kmh, data.speed_kmh),
@@ -813,5 +816,12 @@ class StoppedS(VehicleState):
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
         data.vehicle_control.hand_brake = True
         data.vehicle_control.gear = 0
-        # TODO: activate emergency signals
-        ...
+        light_state = data.vehicle.get_light_state()
+        print(light_state)
+        data.vehicle.set_light_state(
+            VehicleLightState(
+                light_state
+                | VehicleLightState.LeftBlinker
+                | VehicleLightState.RightBlinker
+            )
+        )
