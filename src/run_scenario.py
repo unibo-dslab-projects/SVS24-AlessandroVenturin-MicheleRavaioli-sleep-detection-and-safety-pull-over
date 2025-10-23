@@ -64,7 +64,6 @@ _ = world.apply_settings(settings)
 traffic_manager = client.get_trafficmanager()
 traffic_manager.set_synchronous_mode(True)  # pyright: ignore[reportUnknownMemberType]
 
-
 blueprint_lib = world.get_blueprint_library()
 # Blueprints
 vehicle_bp = blueprint_lib.filter("vehicle.*")[0]
@@ -72,10 +71,10 @@ camera_bp = blueprint_lib.find("sensor.camera.rgb")
 radar_bp = world.get_blueprint_library().find('sensor.other.radar')
 # Right-side radar calibration
 radar_bp.set_attribute('horizontal_fov', str(85))
-radar_bp.set_attribute('vertical_fov', str(5))
+radar_bp.set_attribute('vertical_fov', str(2))
 radar_bp.set_attribute('range', str(SENSORS_MAX_RANGE))
 radar_bp.set_attribute('points_per_second', str(2000))
-radar_location = Location(x=2.0, z=1.0)
+radar_location = Location(x=2.0, z=0.2)
 radar_rotation = Rotation(yaw=50)
 radar_transform = Transform(radar_location,radar_rotation)
 

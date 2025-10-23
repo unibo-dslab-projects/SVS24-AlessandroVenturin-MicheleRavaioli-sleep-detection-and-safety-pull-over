@@ -168,9 +168,7 @@ class VehicleData:
         self.obstacles_detector = SafePulloverChecker(
             radar_sensor=front_radar,
             vehicle=vehicle,
-            scanned_area_width=params.radar_scan_width,
             scanned_area_x_offset=offset,
-            scanned_area_depth=params.sensors_max_range,
             debug=True,
         )
 
@@ -370,7 +368,6 @@ class LaneKeepingS(VehicleState):
         data.traffic_manager.set_desired_speed(
             data.vehicle, data.params.cruise_target_speed_kmh
         )
-        data.traffic_manager.vehicle_percentage_speed_difference(data.vehicle, 0)  # pyright: ignore[reportUnknownMemberType]
         data.vehicle.set_autopilot(True, data.traffic_manager.get_port())
 
     @override
@@ -426,9 +423,13 @@ def _pull_over_is_safe(data: VehicleData) -> PullOverSafety:
     """
     max_stop_dist = _max_stopping_distance(data)
     max_stop_dist = max(max_stop_dist, data.params.min_pull_over_space)
+    scan_width = data.vehicle.bounding_box.extent.y * 2 * 1.4 - _signed_lateral_distance(
+        data.vehicle.get_location(), 
+        _curr_waypoint(data).transform
+        )
     if max_stop_dist > data.params.sensors_max_range:
         return PullOverSafety.GOING_TOO_FAST
-    if not data.obstacles_detector.is_pullover_safe(max_stop_dist, data.vehicle.get_wheel_steer_angle(VehicleWheelLocation.FR_Wheel)):
+    if not data.obstacles_detector.is_pullover_safe(max_stop_dist + 10, scan_width, data.vehicle.get_wheel_steer_angle(VehicleWheelLocation.FR_Wheel)):
         return PullOverSafety.OBSTACLE_DETECTED
     if not _right_lane_is_shoulder(data):
         return PullOverSafety.MISSING_EM_LANE
@@ -539,13 +540,19 @@ class PullOverPreparationS(VehicleState):
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
         data.traffic_manager.set_desired_speed(
-            data.vehicle, data.params.max_pull_over_preparation_speed_kmh
+            data.vehicle, min(data.params.max_pull_over_preparation_speed_kmh, data.speed_kmh)
         )
+        lane_offset = ((_curr_waypoint(data).lane_width / 2) - data.vehicle.bounding_box.extent.y) * 0.9
+        data.traffic_manager.vehicle_lane_offset(data.vehicle, lane_offset)
 
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         # We cache this value as it is heavy to compute an needs to be used multiple times
         data.first_junction_distance = _first_junction_detected_distance(data)
+
+    @override
+    def on_exit(self, data: VehicleData, ctx: VehicleContext):
+        data.traffic_manager.vehicle_lane_offset(data.vehicle, 0)
 
     @override
     def actions(self) -> list[VehicleStateAction]:
@@ -617,7 +624,7 @@ class PullingOverS(VehicleState):
         # a bit ahead of the vehicle
         vehicle_front = _vehicle_front(data)
         vehicle_front = Location(
-            vehicle_front + data.vehicle.get_transform().get_forward_vector() * 2
+            vehicle_front + data.vehicle.get_transform().get_forward_vector() * 1
         )
         # Since it is of maximum importance not to exceed the emergency lane margin
         # the fields are evaluated on the "front right corner" of the vehicle
