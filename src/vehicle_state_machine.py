@@ -308,6 +308,7 @@ class ManualDrivingS(VehicleState):
     @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         data.vehicle_control = data.manual_control.vehicle_control
+        _first_junction_detected_distance(data)
 
     @override
     def transitions(self) -> list[VehicleTransition]:
@@ -457,36 +458,38 @@ def _right_lane_is_shoulder(data: VehicleData) -> bool:
 def _curr_waypoint(data: VehicleData) -> Waypoint:
     # We use the target waypoint as getting a waypoint under the vehicle position
     # may return a waypoint that is part of another overlapping lane
-    target_waypoint = data.traffic_manager.get_next_action(data.vehicle)[1]
-
-    # Here we find a waypoint that is in the exact position of the car but on the correct lane
-    distance_from_car = target_waypoint.transform.location.distance(
-        data.vehicle.get_location()
+    next_action = cast(
+        list[Waypoint | None], data.traffic_manager.get_next_action(data.vehicle)
     )
-    return next(
-        filter(
-            lambda w: w.lane_id == target_waypoint.lane_id,
-            target_waypoint.previous(distance_from_car),
-        ),
-        target_waypoint,  # Just to not crash if for some reason preconditions are not met
-    )
-
+    if next_action.__len__() > 0 and next_action[1] is not None:
+        target_waypoint = next_action[1]
+        # Here we find a waypoint that is in the exact position of the car but on the correct lane
+        distance_from_car = target_waypoint.transform.location.distance(
+            data.vehicle.get_location()
+        )
+        return next(
+            filter(
+                lambda w: w.lane_id == target_waypoint.lane_id,
+                target_waypoint.previous(distance_from_car),
+            ),
+            target_waypoint,  # Just to not crash if for some reason preconditions are not met
+        )
+    else:
+        # In case there is no next action whe use the current location waypoint
+        return data.map.get_waypoint(data.vehicle.get_location())
 
 def _first_junction_detected_distance(data: VehicleData) -> float | None:
-    curr_waypoint = _curr_waypoint(data)
-
     # Here we compute a waypoint every meter ahead of the vehicle to check if it is part of a junction
-    meters_ahead = 0
-    while meters_ahead < data.params.sensors_max_range:
-        # Ensuring not to exceed the maximum range
-        meters_ahead = min(meters_ahead + 1, data.params.sensors_max_range)
-        w = next(
-            filter(
-                lambda w: w.lane_id == curr_waypoint.lane_id,
-                curr_waypoint.next(meters_ahead),
-            )
-        )
+    waypoints = [_curr_waypoint(data)]
+    while waypoints.__len__() < data.params.sensors_max_range:
+        last_w = waypoints[waypoints.__len__() - 1]
+        # TODO: the same waypoint gets added, increase search distance
+        next_l = last_w.transform.location + last_w.transform.get_forward_vector() * 2
+        waypoints.append(data.map.get_waypoint(Location(next_l)))
 
+    for distance, w in enumerate(waypoints):
+        # TODO: remove
+        data.world.debug.draw_string(w.transform.location, "O", life_time=-1)
         # Junctions are road segments and as such they include both sides, so checking if
         # the waypoint is part of a junction is not enough because we don't care if the
         # actual exit or entry is on the other side of the road
@@ -512,7 +515,7 @@ def _first_junction_detected_distance(data: VehicleData) -> float | None:
             # If there is at least one waypoint that is part of a different road then
             # we assume there is an actual junction on the vehicle side of the road
             if waypoint_in_different_road is not None:
-                return meters_ahead
+                return distance
     return None
 
 
