@@ -44,7 +44,7 @@ During pull over preparation we check the following conditions in order to compu
 - for the entire space needed for the maneuver:
 
   - the emergency lane must be clear of obstacles (vehicles or static obstacles)
-  - there should be no exits from the highway
+  - there should be no entries or entry or exits from the highway
 
 During the whole maneuver and after the vehicle has stopped the driver is required to press a button in order to go back to manual driving.
 The reason is that we want the driver to explicitly express the will of taking control of the vehicle (it may not be safe to assume that the driver has regained consciousness by just detecting some movements on the driving wheel or on the pedals).
@@ -52,11 +52,11 @@ The reason is that we want the driver to explicitly express the will of taking c
 ## How to detect a safe pull over spot
 
 We basically need to achieve two goals and combine their results to decide if a spot is safe for pulling over.
-- Detect the emergency lane and possible highway exits
+- Detect the emergency lane and possible highway entries or entry or exits
 - Detect if the emergency lane is free of obstacles
 
 Initially we thought about exploiting the guardrail in order to detect the road boundary.
-In the end we decided not do use that since guardrails are more likely to be missing with respect to the emergency lane.
+In the end we decided not do use that since guardrails are more likely to be missing with respect to the emergency lane marking.
 
 We explored two different approaches using different sensors which are described below.
 
@@ -65,18 +65,16 @@ a right-hand drive context.
 
 ### Camera and radar approach
 
-We exploit a forward looking camera in order to detect a continous (no exit) lane marking (the emergency lane).
+We exploit a forward looking camera in order to detect a continous (no entry or exit) lane marking (the emergency lane).
 
 We exploit a long range radar pointing forward with a slight tilt on the right in order to detect any obstacles in the emergency lane.
 
 1. The camera need to have a free line of sight on the emergency lane line for X meters ahead of the vehicle (X meters is the minimum distance for the vehicle to be able to stop safely and gently)
-2. If the line is not continous throughout all the X meters we assume there is a nearby exit -> NOT SAFE
+2. If the line is not continous throughout all the X meters we assume there is a nearby entry or exit -> NOT SAFE
 3. The radar projects multiple points on the ground ahead for X meters (and slightly on the right) of the vehicle.
 4. We only consider points which distance from the lane marking is about the width of the vehicle (a bit more). This allows us to allow slimmer vehicles to pull over even if the emergency lane il smaller in width.
 5. We measure the height of each considered point from the ground (approximating it with a plane).
 6. If there are multiple points which distance from the plane is relevantly high, we then assume that there is some obstacle in the emergency lane -> NOT SAFE.
-
-As soon as the car start searching for a pull over spot it will gently approach the emergency lane marking in order to extend the visibility of the radar onto the emergency lane.
 
 #### Pros
 - Cheaper sensors
@@ -89,7 +87,7 @@ As soon as the car start searching for a pull over spot it will gently approach 
 ### Semantic lidar approach
 
 1. The sensor need to have a free line of sight on the emergency lane line for X meters ahead of the vehicle (X meters is the minimum distance for the vehicle to be able to stop safely and gently)
-2. If the line is not continous throughout all the X meters we assume there is a nearby exit -> NOT SAFE
+2. If the line is not continous throughout all the X meters we assume there is a nearby entry or exit -> NOT SAFE
 3. Now that we have a solid white line we ensure there is enough space for the vehicle to pull over (the emergency lane is wide enough).
 4. We consider all the sensed points on the other side of the white line and then we only
 consider points which distance from the line (the sensor can give us 3D coorinates of the line) is about the width of the vehicle (a bit more).
@@ -107,15 +105,30 @@ consider points which distance from the line (the sensor can give us 3D coorinat
 
 We finally decided to apply the first approach in order to make our system easier to deploy on cheaper vehicles.
 
-## Finetuning parameters for a smooth pull over
+## How we achieve a flexible, smooth and robust pullover
 
-We start by choosing an appropriate deceleration for the vehicle to stop: 2 m/s^2
+There are three main parameters which then allow to compute most of the thresholds for the algorihm:
 
-Then we see that at a speed of 50 km/h (13.9 m/s) it would take around 7 s for the vehicle to stop.
+- minimum between each of the sensors maximum functional range
+- maximum deceleration that the vehicle should reach while pulling over
+- minimum pull over speed
 
-The stopping distance is about 47.6 meters which is not a large distance and as such it is suitable even in case of the road turning.
+Knowing the sensors maximum range and the maximum deceleration we can compute the maximum speed the vehicle can keep while searching for a safe pull over spot.
+So the vehicle will not start pulling over if the speed is higher than the computed value.
 
-We thought that it would not be safe for the vehicle to reach a full stop as soon as it has completely entered the emergency lane.
-And so we decided that the vehicle should keep a minimum of 10 km/h of speed until it reaches the emergency lane and only after go to a full stop.
+While the vehicle is searching for a pull over spot it will check if there are any obstacles or entries/exits in the emergency lane and if so compute their distance.
+Knowing the current speed and the distance from the next obstacle or entry/exit it is possible to compute what is the deceleration needed to stop before that.
 
-Given that we decided that the emergency lane should be clear for at least 70 meters in order to consider it safe for the vehicle to star pulling over.
+If the computed deceleration is higher than what allowed (by the other primary parameter) then the vehicle will not consider this pull over spot as suitable.
+Otherwise the vehicle will start pulling over while also decelerating as computed.
+
+A minimum pull over speed must be maintained by the vehicle for the whole maneuver until it reaches the emergency lane and position itself correctly inside it.
+
+The steering is computed by using Motor Schemas which is a well known control technique in robotics.
+It provides flexibility and robustness as the steering is adjusted as a continuous function.
+
+In this way it is possbile to achieve a pull over that:
+- is gentle (maximum deceleration)
+- is flexible as the space needed to stop depends on the vehicle speed
+- robust with respect to how much roads can differ from one another
+
