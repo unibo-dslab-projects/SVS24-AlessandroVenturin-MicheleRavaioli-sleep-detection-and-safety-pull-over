@@ -70,7 +70,7 @@ class SafePulloverChecker:
         if depth < 0:
             depth = self.scanned_area_depth
 
-        pts = self._latest_points.copy()
+        pts = self._latest_points.copy().reshape((-1, 3))
         self._debug(pts.shape)
 
         # compute relative positions
