@@ -123,7 +123,7 @@ try:
         traffic_manager=traffic_manager,
         params=VehicleParams(
             sensors_max_range=SENSORS_MAX_RANGE,
-            cruise_target_speed_kmh=100,
+            cruise_target_speed_kmh=scenario.cruise_control_speed,
             max_pull_over_acceleration=-2.0,
             radar_scan_width=RADAR_SCAN_WIDTH,
         ),

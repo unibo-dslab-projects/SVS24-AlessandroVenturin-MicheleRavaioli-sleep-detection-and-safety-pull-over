@@ -11,12 +11,14 @@ class Scenario():
     def __init__(self, 
                  map_name: str,
                  spawn_point: Transform,
+                 cruise_control_speed: float = 100,
                  stopped_cars: list[tuple[str, Transform]] = [], # [(blueprint_id, spawn_point)...]
                  moving_cars: list[tuple[str, Transform, float | None]] = []): # [(blueprint_id, spawn_point, speed)...]
         self.map_name     = map_name
         self.spawn_point  = spawn_point
         self.stopped_cars = stopped_cars
         self.moving_cars  =  moving_cars
+        self.cruise_control_speed = cruise_control_speed
 
 
     def load(self, client: Client, ego_vehicle: Vehicle):
@@ -153,9 +155,8 @@ class BusyStraightRoadScenario(EmptyStraightRoadScenario):
     """
     def __init__(self):
         super().__init__()
-
         p = MAP04_STRAIGHT_ROAD_SPAWN_POINT
-
+        self.cruise_control_speed = 25
         self.moving_cars = [
             ("vehicle.chevrolet.impala", Transform(
                 Location(x=-329.602448, y=33.682590, z=1.635707),
@@ -181,7 +182,7 @@ class BusyCurveRoadScenario(EmptyCurveRoadScenario):
     """
     def __init__(self):
         super().__init__()
-
+        self.cruise_control_speed = 25
         self.moving_cars = [
             ("vehicle.chevrolet.impala", Transform(
                 Location(x=410.391357, y=-179.754700, z=0.597406),
@@ -207,9 +208,8 @@ class TrafficJamScenario(EmptyStraightRoadScenario):
     """
     def __init__(self):
         super().__init__()
-
         p = MAP04_STRAIGHT_ROAD_SPAWN_POINT
-
+        self.cruise_control_speed = 5
         self.moving_cars = [
             ("vehicle.chevrolet.impala", Transform(
                 Location(p.location.x + 12, p.location.y, z=2),
