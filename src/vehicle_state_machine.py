@@ -496,7 +496,7 @@ def _first_junction_detected_distance(data: VehicleData) -> float | None:
             # we assume there is an actual junction on the vehicle side of the road
             if waypoint_in_different_road is not None:
                 return meters_ahead
-        return None
+    return None
 
 
 def _max_stopping_distance(data: VehicleData) -> float:
