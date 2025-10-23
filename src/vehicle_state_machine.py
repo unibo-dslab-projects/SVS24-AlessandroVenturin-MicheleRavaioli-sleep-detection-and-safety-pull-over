@@ -15,6 +15,7 @@ from carla import (
     Vehicle,
     VehicleAckermannControl,
     VehicleControl,
+    VehicleWheelLocation,
     Waypoint,
     World,
 )
@@ -427,7 +428,7 @@ def _pull_over_is_safe(data: VehicleData) -> PullOverSafety:
     max_stop_dist = max(max_stop_dist, data.params.min_pull_over_space)
     if max_stop_dist > data.params.sensors_max_range:
         return PullOverSafety.GOING_TOO_FAST
-    if not data.obstacles_detector.is_pullover_safe(max_stop_dist):
+    if not data.obstacles_detector.is_pullover_safe(max_stop_dist, data.vehicle.get_wheel_steer_angle(VehicleWheelLocation.FR_Wheel)):
         return PullOverSafety.OBSTACLE_DETECTED
     if not _right_lane_is_shoulder(data):
         return PullOverSafety.MISSING_EM_LANE
