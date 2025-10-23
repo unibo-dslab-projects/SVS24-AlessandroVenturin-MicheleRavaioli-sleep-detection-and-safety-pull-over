@@ -356,7 +356,7 @@ class LaneKeepingS(VehicleState):
         data.traffic_manager.set_desired_speed(
             data.vehicle, data.params.cruise_target_speed_kmh
         )
-        data.traffic_manager.vehicle_percentage_speed_difference(data.vehicle, -100)  # pyright: ignore[reportUnknownMemberType]
+        data.traffic_manager.vehicle_percentage_speed_difference(data.vehicle, 0)  # pyright: ignore[reportUnknownMemberType]
         data.vehicle.set_autopilot(True, data.traffic_manager.get_port())
 
     @override
