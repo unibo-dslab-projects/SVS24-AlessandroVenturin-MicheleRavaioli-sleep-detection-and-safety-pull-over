@@ -28,9 +28,6 @@ class PygameVehicleControl:
         self._control = VehicleControl()
 
     def update(self, events: Sequence[pygame.event.Event]):
-        # Reset controls
-        self._control = VehicleControl()
-
         # Consume events
         for event in events:
             if event.type == pygame.KEYDOWN:
@@ -64,6 +61,10 @@ class PygameVehicleControl:
                 direction = Direction.FORWARD
             else:
                 direction = Direction.BACKWARD
+
+        # Reset controls
+        self._control.brake = 0
+        self._control.throttle = 0
 
         match direction:
             case None:
