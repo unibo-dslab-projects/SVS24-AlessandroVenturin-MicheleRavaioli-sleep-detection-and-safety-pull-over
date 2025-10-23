@@ -61,7 +61,7 @@ class VehicleParams:
     """
     radar_scan_width: float
 
-    pull_over_potential_field_coeff: float = 1.45
+    pull_over_potential_field_coeff: float = 1.35
     road_margin_repulsive_potential_field_coeff: float = 2
 
     @property

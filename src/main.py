@@ -18,7 +18,7 @@ USE_PYGAME_CAMERA = False
 CAMERA_LOCATION_OFFSET = Location(x=-5, z=3)
 CAMERA_PITCH = -20
 SENSORS_MAX_RANGE = 50
-RADAR_SCAN_WIDTH = 3.5
+RADAR_SCAN_WIDTH = 3.2
 
 spawn_point = HIGHWAY_SPAWN_POINT
 camera: Sensor | None = None
@@ -59,7 +59,7 @@ radar_bp.set_attribute('horizontal_fov', str(85))
 radar_bp.set_attribute('vertical_fov', str(2))
 radar_bp.set_attribute('range', str(SENSORS_MAX_RANGE))
 radar_bp.set_attribute('points_per_second', str(1000))
-radar_location = Location(x=2.0, z=1.0)
+radar_location = Location(x=2.0, z=0.2)
 radar_rotation = Rotation(yaw=50)
 radar_transform = Transform(radar_location,radar_rotation)
 
