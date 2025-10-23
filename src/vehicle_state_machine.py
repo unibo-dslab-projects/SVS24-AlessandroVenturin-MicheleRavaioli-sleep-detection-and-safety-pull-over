@@ -362,6 +362,10 @@ class LaneKeepingS(VehicleState):
     @override
     def on_exit(self, data: VehicleData, ctx: VehicleContext):
         data.vehicle.set_autopilot(False, data.traffic_manager.get_port())
+        # The following line fixes a carla bug https://github.com/carla-simulator/carla/issues/7626
+        # It appears that applying an empty VehicleControl will not do anything and
+        # so we need to apply a vehicle control with some field set to a meaningless value
+        data.vehicle.apply_control(VehicleControl(throttle=0.01))
 
 def _inattention_detected(data: VehicleData) -> bool:
     return data.inattention_detector.detect()
