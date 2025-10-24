@@ -387,6 +387,7 @@ class LaneKeepingS(VehicleState):
 def _inattention_detected(data: VehicleData) -> bool:
     return data.inattention_detector.detect()
 
+
 class NoInattentionDetectedS(VehicleState):
     @override
     def transitions(self) -> list[VehicleTransition]:
@@ -428,13 +429,19 @@ def _pull_over_is_safe(data: VehicleData) -> PullOverSafety:
     """
     max_stop_dist = _max_stopping_distance(data)
     max_stop_dist = max(max_stop_dist, data.params.min_pull_over_space)
-    scan_width = data.vehicle.bounding_box.extent.y * 2 * 1.4 - _signed_lateral_distance(
-        data.vehicle.get_location(), 
-        _curr_waypoint(data).transform
+    scan_width = (
+        data.vehicle.bounding_box.extent.y * 2 * 1.4
+        - _signed_lateral_distance(
+            data.vehicle.get_location(), _curr_waypoint(data).transform
         )
+    )
     if max_stop_dist > data.params.sensors_max_range:
         return PullOverSafety.GOING_TOO_FAST
-    if not data.obstacles_detector.is_pullover_safe(max_stop_dist + 10, scan_width, data.vehicle.get_wheel_steer_angle(VehicleWheelLocation.FR_Wheel)):
+    if not data.obstacles_detector.is_pullover_safe(
+        max_stop_dist + 10,
+        scan_width,
+        data.vehicle.get_wheel_steer_angle(VehicleWheelLocation.FR_Wheel),
+    ):
         return PullOverSafety.OBSTACLE_DETECTED
     if not _right_lane_is_shoulder(data):
         return PullOverSafety.MISSING_EM_LANE
@@ -558,9 +565,12 @@ class PullOverPreparationS(VehicleState):
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
         data.traffic_manager.set_desired_speed(
-            data.vehicle, min(data.params.max_pull_over_preparation_speed_kmh, data.speed_kmh)
+            data.vehicle,
+            min(data.params.max_pull_over_preparation_speed_kmh, data.speed_kmh),
         )
-        lane_offset = ((_curr_waypoint(data).lane_width / 2) - data.vehicle.bounding_box.extent.y) * 0.9
+        lane_offset = (
+            (_curr_waypoint(data).lane_width / 2) - data.vehicle.bounding_box.extent.y
+        ) * 0.9
         data.traffic_manager.vehicle_lane_offset(data.vehicle, lane_offset)
 
     @override
