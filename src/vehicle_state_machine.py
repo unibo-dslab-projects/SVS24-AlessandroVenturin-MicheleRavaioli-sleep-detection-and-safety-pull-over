@@ -171,6 +171,7 @@ class VehicleData:
         self.obstacles_detector = SafePulloverChecker(
             radar_sensor=front_radar,
             vehicle=vehicle,
+            min_inliers = 2,
             scanned_area_x_offset=offset,
             debug=True,
         )
@@ -469,7 +470,7 @@ def _pull_over_is_safe(data: VehicleData) -> PullOverSafety:
     max_stop_dist = _max_stopping_distance(data)
     max_stop_dist = max(max_stop_dist, data.params.min_pull_over_space)
     scan_width = (
-        data.vehicle.bounding_box.extent.y * 2 * 1.7
+        data.vehicle.bounding_box.extent.y * 2 * 1.65
         - _signed_lateral_distance(
             data.vehicle.get_location(), _curr_waypoint(data).transform
         )
