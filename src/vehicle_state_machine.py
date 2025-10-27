@@ -309,6 +309,16 @@ class ExitS(VehicleState):
 
 class ManualDrivingS(VehicleState):
     @override
+    def on_entry(self, data: VehicleData, ctx: VehicleContext):
+        light_state = data.vehicle.get_light_state()
+        data.vehicle.set_light_state(
+            VehicleLightState(
+                light_state
+                & ~(VehicleLightState.RightBlinker | VehicleLightState.LeftBlinker)
+            )
+        )
+
+    @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         data.vehicle_control = data.manual_control.vehicle_control
 
@@ -817,7 +827,6 @@ class StoppedS(VehicleState):
         data.vehicle_control.hand_brake = True
         data.vehicle_control.gear = 0
         light_state = data.vehicle.get_light_state()
-        print(light_state)
         data.vehicle.set_light_state(
             VehicleLightState(
                 light_state
