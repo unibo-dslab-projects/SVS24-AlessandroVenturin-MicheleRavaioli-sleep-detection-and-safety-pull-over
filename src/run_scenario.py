@@ -66,7 +66,8 @@ traffic_manager.set_synchronous_mode(True)  # pyright: ignore[reportUnknownMembe
 
 blueprint_lib = world.get_blueprint_library()
 # Blueprints
-vehicle_bp = blueprint_lib.filter("vehicle.*")[0]
+vehicle_bp = blueprint_lib.find("vehicle.mercedes.coupe_2020")
+# vehicle_bp = blueprint_lib.filter("vehicle.*")[0]
 camera_bp = blueprint_lib.find("sensor.camera.rgb")
 radar_bp = world.get_blueprint_library().find('sensor.other.radar')
 # Right-side radar calibration
