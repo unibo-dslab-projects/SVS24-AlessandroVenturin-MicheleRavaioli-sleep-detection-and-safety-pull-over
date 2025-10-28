@@ -27,6 +27,20 @@ _ = parser.add_argument(
     help="The index of the scenario to run. defaults to 1.\n1) Empty straight road\n2) Empty curve\n3) Straight road with traffic\n4) Curve with traffic\n5) Traffic jam",
     type=int,
 )
+
+def str_or_int(value: str):
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+_ = parser.add_argument(
+    "-camera_device",
+    help="Camera device to use, accept both index (ex: 0) and name (ex: /dev/video0)",
+    type=str_or_int,
+    default="0",
+)
+
 _ = parser.add_argument(
     "-wake_up_sound",
     help="Sound to play in order to wake up the driver.",
@@ -119,7 +133,9 @@ try:
         camera.listen(lambda image: io.prepare_output_image(cast(Image, image)))
 
     # Getting driver camera (webcam)
-    driver_camera_stream = WebcamCameraStream(device=0, width=600, height=480)
+    driver_camera_stream = WebcamCameraStream(
+        device=cast(str | int, args.camera_device), width=600, height=480
+    )
 
     # Spawn radar
     front_radar = cast(
