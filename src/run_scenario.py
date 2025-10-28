@@ -5,6 +5,7 @@ from typing import cast
 from argparse import ArgumentParser
 
 from carla import AttachmentType, Client, Image, Location, Rotation, Sensor, Transform, Vehicle
+import pygame
 
 from inattention.detector import WebcamCameraStream
 from pygame_io import PygameIO
@@ -129,6 +130,7 @@ try:
         ),
         driver_camera_stream=driver_camera_stream,
         front_radar=front_radar,
+        wake_up_sound=pygame.mixer.Sound("alarm.mp3"),
         logging_config=VehicleLoggingConfig(log_entries=True),
     )
 
