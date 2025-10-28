@@ -45,7 +45,7 @@ _ = parser.add_argument(
     "-wake_up_sound",
     help="Sound to play in order to wake up the driver.",
     type=str,
-    default="alarm.mp3",
+    default="media/alarm.mp3",
 )
 args = parser.parse_args()
 
