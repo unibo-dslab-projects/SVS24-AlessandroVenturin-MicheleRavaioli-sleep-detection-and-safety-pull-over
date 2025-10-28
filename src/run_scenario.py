@@ -16,8 +16,17 @@ from vehicle_state_machine import VehicleParams, VehicleStateMachine
 import scenarios
 
 parser = ArgumentParser("run_scenario")
-parser.add_argument("scenario_index", help=
-"The index of the scenario to run. defaults to 1.\n1) Empty straight road\n2) Empty curve\n3) Straight road with traffic\n4) Curve with traffic\n5) Traffic jam", type=int)
+_ = parser.add_argument(
+    "scenario_index",
+    help="The index of the scenario to run. defaults to 1.\n1) Empty straight road\n2) Empty curve\n3) Straight road with traffic\n4) Curve with traffic\n5) Traffic jam",
+    type=int,
+)
+_ = parser.add_argument(
+    "-wake_up_sound",
+    help="Sound to play in order to wake up the driver.",
+    type=str,
+    default="alarm.mp3",
+)
 args = parser.parse_args()
 
 def choose_scenario(i: int | None) -> scenarios.Scenario:
@@ -130,7 +139,7 @@ try:
         ),
         driver_camera_stream=driver_camera_stream,
         front_radar=front_radar,
-        wake_up_sound=pygame.mixer.Sound("alarm.mp3"),
+        wake_up_sound=pygame.mixer.Sound(args.wake_up_sound),
         logging_config=VehicleLoggingConfig(log_entries=True),
     )
 
