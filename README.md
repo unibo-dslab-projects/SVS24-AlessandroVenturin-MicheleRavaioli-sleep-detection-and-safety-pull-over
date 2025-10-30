@@ -127,8 +127,26 @@ A minimum pull over speed must be maintained by the vehicle for the whole maneuv
 The steering is computed by using Motor Schemas which is a well known control technique in robotics.
 It provides flexibility and robustness as the steering is adjusted as a continuous function.
 
-In this way it is possbile to achieve a pull over that:
+In this way it is possible to achieve a pull over that:
 - is gentle (maximum deceleration)
 - is flexible as the space needed to stop depends on the vehicle speed
 - robust with respect to how much roads can differ from one another
 
+## How to detect driver inattention
+
+An important aspect to consider is the method used to detect driver inattention. The goal is to reliably determine whether the driver is focused on the road and to notify the system of their condition.
+
+This is accomplished using a fast and reliable classifier capable of distinguishing between open and closed eyes. Of course, simply detecting closed eyes is not sufficient to conclude that the driver is drowsy. Instead, this detection is monitored over time: a driver is considered drowsy if their eyes remain closed (or undetected) for a continuous period.
+
+In this project, the problem is divided into two main stages: **eye detection** and **state classification**. The most logical strategy involves first detecting the eyes using a detection algorithm, then using the results to train a classifier that distinguishes between open and closed eyes.
+
+However, as described in the paper [*Real-Time Eye Blink Detection using Facial Landmarks*](https://vision.fe.uni-lj.si/cvww2016/proceedings/papers/05.pdf), this process can be simplified by using a detector that provides both eye positions and **facial landmarks**. In this case, there is no need to train an additional classification algorithm—the information from the landmarks can directly indicate whether the eyes are open or closed, reducing the system's complexity.
+
+The paper highlights that by using the appropriate facial landmarks, it is possible to compute the **Eye Aspect Ratio (EAR)**, a geometric metric that describes the state of the eye. The EAR captures the eye's shape information, making it an effective indicator for distinguishing between open and closed eyes.
+
+The system is therefore composed of the following components:
+
+* **Eye Detector**: Detects eye landmarks from an image, based on a small and efficient neural network provided by Dlib.
+* **Eye Classifier**: Determines the eye state (open or closed) from the detected facial landmarks.
+
+The inattention detection module uses this classifier to differentiate between open and closed eyes. Since the processing time may vary between frames, the detection does not run inside the camera callback. Instead, it operates in a separate thread that performs computations asynchronously. This design allows both the main system and the detector to run independently at their respective frame rates.
