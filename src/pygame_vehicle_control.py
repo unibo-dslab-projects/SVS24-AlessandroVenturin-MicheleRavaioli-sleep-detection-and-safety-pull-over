@@ -27,7 +27,7 @@ class PygameVehicleControl:
         self._steer_cache = 0
         self._control = VehicleControl()
 
-    def update(self, events: Sequence[pygame.event.Event]):
+    def update(self, dt: float, events: Sequence[pygame.event.Event]):
         # Consume events
         for event in events:
             if event.type == pygame.KEYDOWN:
@@ -86,17 +86,17 @@ class PygameVehicleControl:
 
         if self._steer is not None:
             if self._steer == 1:
-                self._steer_cache += 0.03
+                self._steer_cache += 0.9 * dt
             if self._steer == -1:
-                self._steer_cache -= 0.03
+                self._steer_cache -= 0.9 * dt
             # In the example the following expression was not assigned to anything
             # min(0.7, max(-0.7, self._steer_cache))
             self._control.steer = round(self._steer_cache, 1)
         else:
             if self._steer_cache > 0.0:
-                self._steer_cache *= 0.2
+                self._steer_cache *= 0.2 * dt
             if self._steer_cache < 0.0:
-                self._steer_cache *= 0.2
+                self._steer_cache *= 0.2 * dt
             if 0.01 > self._steer_cache > -0.01:
                 self._steer_cache = 0.0
             self._control.steer = round(self._steer_cache, 1)

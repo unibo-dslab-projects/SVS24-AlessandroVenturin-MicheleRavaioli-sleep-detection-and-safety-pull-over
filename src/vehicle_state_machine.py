@@ -304,7 +304,7 @@ class WrapperS(State[VehicleData, VehicleTimers]):
         data.vehicle_control = VehicleControl()
         data.vehicle_ackermann_control = None
         data.pygame_events = data.pygame_io.update()
-        data.manual_control.update(data.pygame_events)
+        data.manual_control.update(ctx.dt, data.pygame_events)
         data.dashboard_buttons.update(data.pygame_events)
 
     @override
