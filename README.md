@@ -80,6 +80,9 @@ During pull over preparation we check the following conditions in order to compu
 During the whole maneuver and after the vehicle has stopped the driver is required to press a button in order to go back to manual driving.
 The reason is that we want the driver to explicitly express the will of taking control of the vehicle (it may not be safe to assume that the driver has regained consciousness by just detecting some movements on the driving wheel or on the pedals).
 
+Here is a simplified UML state diagram that shows most of the logic of our system, abstracting away implementation details.
+![Simplified UML state diagram of our solution](doc/state-diagram.png)
+
 ## How to detect a safe pull over spot
 
 We basically need to achieve two goals and combine their results to decide if a spot is safe for pulling over.
