@@ -185,3 +185,7 @@ The system is therefore composed of the following components:
 * **Eye Classifier**: Determines the eye state (open or closed) from the detected facial landmarks.
 
 The inattention detection module uses this classifier to differentiate between open and closed eyes. Since the processing time may vary between frames, the detection does not run inside the camera callback. Instead, it operates in a separate thread that performs computations asynchronously. This design allows both the main system and the detector to run independently at their respective frame rates.
+
+## Edge cases
+There are some edge cases that we did not cover due to time constraints:
+- If the ego vehicle is going really slow and there is an obstacle in the emergency lane, it may happen that the ego vehicle will pull over right after the radar has surpassed the obstacle resulting in the obstacle being hit. This issue can be easilly solved by complementing the main radar with a short range radar on the side of the vehicle.
