@@ -80,6 +80,8 @@ class VehicleParams:
     Valid values are >= 0 and <= 1
     """
 
+    wake_up_sound_delay: float = 8
+
     @property
     def max_pull_over_preparation_speed_kmh(self) -> float:
         """
@@ -215,6 +217,7 @@ class PullOverSafety(StrEnum):
 class VehicleTimers(StrEnum):
     INATTENTION = auto()
     INATTENTION_CHECK = auto()
+    WAKE_UP_SOUND_DELAY = auto()
 
 
 type VehicleContext = Context[VehicleTimers]
@@ -344,16 +347,6 @@ class ExitS(VehicleState):
 
 class ManualDrivingS(VehicleState):
     @override
-    def on_entry(self, data: VehicleData, ctx: VehicleContext):
-        light_state = data.vehicle.get_light_state()
-        data.vehicle.set_light_state(
-            VehicleLightState(
-                light_state
-                & ~(VehicleLightState.RightBlinker | VehicleLightState.LeftBlinker)
-            )
-        )
-
-    @override
     def on_do(self, data: VehicleData, ctx: VehicleContext):
         data.vehicle_control = data.manual_control.vehicle_control
 
@@ -388,6 +381,14 @@ class CruiseControlS(VehicleState):
 
     @override
     def on_exit(self, data: VehicleData, ctx: VehicleContext):
+        light_state = data.vehicle.get_light_state()
+        data.vehicle.set_light_state(
+            VehicleLightState(
+                light_state
+                & ~(VehicleLightState.RightBlinker | VehicleLightState.LeftBlinker)
+            )
+        )
+
         if data.wake_up_sound is not None:
             data.wake_up_sound.stop()
 
@@ -514,12 +515,25 @@ class InattentionDetectedS(VehicleState):
                 ).is_elapsed(),
                 action=_reset_inattention_check_timer_and_accumulators,
             ),
+            VehicleStateAction(
+                condition=lambda data, ctx: ctx.timer(
+                    VehicleTimers.WAKE_UP_SOUND_DELAY
+                ).is_elapsed(),
+                action=lambda data, ctx: self._activate_wake_up_sound(data, ctx),
+            ),
         ]
+
+    def _activate_wake_up_sound(self, data: VehicleData, ctx: VehicleContext):
+        if data.wake_up_sound is not None:
+            _ = data.wake_up_sound.play(loops=-1)
+        # Just a hack to not trigger again on every step
+        ctx.timer(VehicleTimers.WAKE_UP_SOUND_DELAY).reset(math.inf)
 
     @override
     def on_entry(self, data: VehicleData, ctx: VehicleContext):
-        if data.wake_up_sound is not None:
-            _ = data.wake_up_sound.play(loops=-1)
+        ctx.timer(VehicleTimers.WAKE_UP_SOUND_DELAY).reset(
+            data.params.wake_up_sound_delay
+        )
         ctx.timer(VehicleTimers.INATTENTION).reset(18)
         _reset_inattention_check_timer_and_accumulators(data, ctx)
 

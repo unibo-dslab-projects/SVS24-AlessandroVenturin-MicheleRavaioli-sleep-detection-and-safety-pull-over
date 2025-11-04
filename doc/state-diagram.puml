@@ -16,17 +16,15 @@ state "Advanced Cruise Control" as CruiseControl {
         NoInattentionDetected -> InattentionDetected : inattention detected for 2 seconds
 
         state "Inattention Detected" as InattentionDetected {
-            InattentionDetected : after 8 seconds / activate sound noise
-            InattentionDetected : exit / deactivate sound noise
+            InattentionDetected : after 8 seconds / activate wake up sound
         }
         InattentionDetected -> NoInattentionDetected : no inattention detected for 2 seconds
         InattentionDetected -r-> PullOverPrep : after 18 seconds
 
         state "Pull Over Preparation" as PullOverPrep {
             PullOverPrep : entry / activate turn signals
-            PullOverPrep : do / slow down to a minimum of 50 km/h
-            PullOverPrep : do / check pull over safety
-            PullOverPrep : do / inform driver about imminent pull over (dashboard)
+            PullOverPrep : do / gently shift to let the radar see further away
+            PullOverPrep : do / slow down to computed maximum pull over speed
         }
         PullOverPrep --> PullingOver : pulling over is safe
     }
@@ -34,7 +32,8 @@ state "Advanced Cruise Control" as CruiseControl {
     state "Pulling Over" as PullingOver {
         [*] -> EmergencyLaneNotReached
         state "Emergency Lane Not Reached" as EmergencyLaneNotReached
-        EmergencyLaneNotReached : do / slow down to a minimum of 10 km/h
+        EmergencyLaneNotReached : do / slow down with computed deceleration
+        EmergencyLaneNotReached : do / slow up to the min pull over speed
         EmergencyLaneNotReached : do / pull over to the emergency lane
 
         EmergencyLaneNotReached --> EmergencyLaneReached : emergency lane reached
@@ -46,10 +45,10 @@ state "Advanced Cruise Control" as CruiseControl {
 
     state Stopped {
         Stopped : entry / activate emergency signals
-        Stopped : exit / deactivate emergency signals
     }
 }
 CruiseControl -l-> ManualDriving : manual driving button pressed
 CruiseControl : exit / deactivate turn signals
+CruiseControl : exit / deactivate wake up sound
 
 @enduml
