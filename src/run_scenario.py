@@ -28,11 +28,13 @@ _ = parser.add_argument(
     type=int,
 )
 
+
 def str_or_int(value: str):
     try:
         return int(value)
     except ValueError:
         return value
+
 
 _ = parser.add_argument(
     "-camera_device",
@@ -47,6 +49,20 @@ _ = parser.add_argument(
     type=str,
     default="media/alarm.mp3",
 )
+
+_ = parser.add_argument(
+    "-fps",
+    help="Set the amount of frame/steps per seconds the simulator should run. If you provide a value too high for your system you may experience a slow-motion effect. We suggest a value of 20 on low end systems",
+    type=int,
+    default=60,
+)
+
+_ = parser.add_argument(
+    "-use_pygame_camera",
+    help="Send camera feed to pygame window (heavier on system resources)",
+    action="store_true",
+)
+
 args = parser.parse_args()
 
 
@@ -65,10 +81,9 @@ def choose_scenario(i: int | None) -> scenarios.Scenario:
 # Define scenario
 scenario = choose_scenario(cast(int, args.scenario_index))
 
-FRAMERATE = 20
-DT = 1 / FRAMERATE
+framerate = cast(int, args.fps)
+DT = 1 / framerate
 MAP = scenario.map_name
-USE_PYGAME_CAMERA = False
 CAMERA_LOCATION_OFFSET = Location(x=-8, z=3)
 CAMERA_PITCH = -20
 SENSORS_MAX_RANGE = 50
@@ -126,7 +141,7 @@ try:
     # Load scenario
     scenario.load(client, vehicle)
 
-    if USE_PYGAME_CAMERA:
+    if cast(bool, args.use_pygame_camera):
         camera = cast(Sensor, world.spawn_actor(camera_bp, Transform()))
 
         # Bind camera to pygame window
