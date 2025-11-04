@@ -31,6 +31,7 @@ pip install -r requirements.txt
 ```
 
 ### Run
+
 ```sh
 python ./src/run_scenario.py --help
 # Will print all the available scenarios to showcase our system along their id
@@ -49,15 +50,15 @@ python ./src/run_scenario.py -camera_device <camera_device> <scenario_id>
 ^C # To stop the scenario
 ```
 
-A black window will pop up, in order to send any keystroke to the simulator you 
+A black window will pop up, in order to send any keystroke to the simulator you
 must have that window in focus.
 
-|Key|Action|
-|-|-|
-|m|Go into manual driving|
-|arrow keys|Control the vehicle while in manual driving mode|
-|c|Activate adaptive cruise control|
-|p|Force a pull over (even if the driver is conscious|
+| Key        | Action                                             |
+| ---------- | -------------------------------------------------- |
+| m          | Go into manual driving                             |
+| arrow keys | Control the vehicle while in manual driving mode   |
+| c          | Activate adaptive cruise control                   |
+| p          | Force a pull over (even if the driver is conscious |
 
 We do not support driving wheel controls as our system is supposed to work when
 the driver is not directly controlling the vehicle.
@@ -73,7 +74,6 @@ During pull over preparation we check the following conditions in order to compu
 
 - there must be an emergency lane
 - for the entire space needed for the maneuver:
-
   - the emergency lane must be clear of obstacles (vehicles or static obstacles)
   - there should be no entries or entry or exits from the highway
 
@@ -83,6 +83,7 @@ The reason is that we want the driver to explicitly express the will of taking c
 ## How to detect a safe pull over spot
 
 We basically need to achieve two goals and combine their results to decide if a spot is safe for pulling over.
+
 - Detect the emergency lane and possible highway entries or entry or exits
 - Detect if the emergency lane is free of obstacles
 
@@ -112,6 +113,7 @@ In order to mitigate this problem the vehicle will gently shift to the right
 reaching the lane marking.
 
 #### Pros
+
 - Cheaper sensors
 
 #### Cons
@@ -125,7 +127,7 @@ reaching the lane marking.
 2. If the line is not continous throughout all the X meters we assume there is a nearby entry or exit -> NOT SAFE
 3. Now that we have a solid white line we ensure there is enough space for the vehicle to pull over (the emergency lane is wide enough).
 4. We consider all the sensed points on the other side of the white line and then we only
-consider points which distance from the line (the sensor can give us 3D coorinates of the line) is about the width of the vehicle (a bit more).
+   consider points which distance from the line (the sensor can give us 3D coorinates of the line) is about the width of the vehicle (a bit more).
 5. We measure the height of each considered point from the ground (approximating it with a plane).
 6. If there are multiple points which distance from the plane is relevantly high, we then assume that there is some obstacle in the emergency lane -> NOT SAFE.
 
@@ -163,6 +165,7 @@ The steering is computed by using Motor Schemas which is a well known control te
 It provides flexibility and robustness as the steering is adjusted as a continuous function.
 
 In this way it is possible to achieve a pull over that:
+
 - is gentle (maximum deceleration)
 - is flexible as the space needed to stop depends on the vehicle speed
 - robust with respect to how much roads can differ from one another
@@ -175,17 +178,19 @@ This is accomplished using a fast and reliable classifier capable of distinguish
 
 In this project, the problem is divided into two main stages: **eye detection** and **state classification**. The most logical strategy involves first detecting the eyes using a detection algorithm, then using the results to train a classifier that distinguishes between open and closed eyes.
 
-However, as described in the paper [*Real-Time Eye Blink Detection using Facial Landmarks*](https://vision.fe.uni-lj.si/cvww2016/proceedings/papers/05.pdf), this process can be simplified by using a detector that provides both eye positions and **facial landmarks**. In this case, there is no need to train an additional classification algorithm—the information from the landmarks can directly indicate whether the eyes are open or closed, reducing the system's complexity.
+However, as described in the paper [_Real-Time Eye Blink Detection using Facial Landmarks_](https://vision.fe.uni-lj.si/cvww2016/proceedings/papers/05.pdf), this process can be simplified by using a detector that provides both eye positions and **facial landmarks**. In this case, there is no need to train an additional classification algorithm—the information from the landmarks can directly indicate whether the eyes are open or closed, reducing the system's complexity.
 
 The paper highlights that by using the appropriate facial landmarks, it is possible to compute the **Eye Aspect Ratio (EAR)**, a geometric metric that describes the state of the eye. The EAR captures the eye's shape information, making it an effective indicator for distinguishing between open and closed eyes.
 
 The system is therefore composed of the following components:
 
-* **Eye Detector**: Detects eye landmarks from an image, based on a small and efficient neural network provided by Dlib.
-* **Eye Classifier**: Determines the eye state (open or closed) from the detected facial landmarks.
+- **Eye Detector**: Detects eye landmarks from an image, based on a small and efficient neural network provided by Dlib.
+- **Eye Classifier**: Determines the eye state (open or closed) from the detected facial landmarks.
 
 The inattention detection module uses this classifier to differentiate between open and closed eyes. Since the processing time may vary between frames, the detection does not run inside the camera callback. Instead, it operates in a separate thread that performs computations asynchronously. This design allows both the main system and the detector to run independently at their respective frame rates.
 
 ## Edge cases
+
 There are some edge cases that we did not cover due to time constraints:
+
 - If the ego vehicle is going really slow and there is an obstacle in the emergency lane, it may happen that the ego vehicle will pull over right after the radar has surpassed the obstacle resulting in the obstacle being hit. This issue can be easilly solved by complementing the main radar with a short range radar on the side of the vehicle.
