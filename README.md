@@ -216,6 +216,38 @@ separate thread that performs computations asynchronously. This design allows
 both the main system and the detector to run independently at their respective
 frame rates.
 
+## Testing
+
+We tested our system in multiple scenarios, each of them can be run on CARLA
+simulator, to do so refer to the [Usage section](#usage)
+
+Unfortunately we were not able to test our system on an actual highway map
+because in that map we experienced serious bugs regarding the radar sensor which
+consistently retrieved wrong data. So we choose another map with pretty fast
+driving roads but with three aspects that should not realistically be present in
+a real highway:
+
+- Some turns are too tight
+- It has some semaphores
+- Some lanes lead to exits directly (without a need for the car to change lane)
+
+| Scenario | Description                                                                                |
+| -------- | ------------------------------------------------------------------------------------------ |
+| 1        | Long straight road without any traffic, with obstacles in the emergency lane               |
+| 2        | Long turning road without any traffic, with obstacles in the emergency lane                |
+| 3        | Long straight road with traffic and obstacles in the emergency lane                        |
+| 4        | Long turning road with traffic and obstacles in the emergency lane                         |
+| 5        | Long straight and then turning road jammed by traffic with obstacles in the emergency lane |
+
+Except for those cases listed in the [Edge cases section](#edge-cases) we did
+not experience any failure or crash.
+
+> **Note:**
+>
+> In all scenarios which present traffic we had to manually set the maximum
+> speed of the ego vehicle because the autopilot was not able to keep a steady
+> speed when following another vehicle
+
 ## Edge cases
 
 There are some edge cases that we did not cover due to time constraints:
