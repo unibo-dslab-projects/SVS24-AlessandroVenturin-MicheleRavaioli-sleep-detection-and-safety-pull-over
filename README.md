@@ -135,6 +135,17 @@ easier to deploy on cheaper vehicles.
 
 ## Implementation
 
+### Sensors positioning
+
+The image illustrates the positioning of the front facing camera and radar.
+Coloured dots represent the kind of situations those sensors want to detect.
+
+<img src="./doc/sensors.png" style="height: 800px"/>
+
+Regarding the internal camera framing the driver face it should be positioned
+near the sun visor in front of him, resulting in an image feed like the
+following.
+
 ### Flexible, smooth and robust pullover
 
 There are three main parameters which then allow to compute most of the
