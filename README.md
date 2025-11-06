@@ -148,6 +148,12 @@ Regarding the internal camera framing the driver face it should be positioned
 near the sun visor in front of him, resulting in an image feed like the
 following.
 
+> **Note:**
+>
+> In order to keep the workload of this project between the bounds imposed we
+> did not actually use a camera for detecting the emergency lane and any
+> eventual exit/entry. We used CARLA's API instead to emulate that.
+
 ### Flexible, smooth and robust pullover
 
 There are three main parameters which then allow to compute most of the
