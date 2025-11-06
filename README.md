@@ -46,7 +46,7 @@ detecting if the driver falls asleep and, in such cases, safely pulling the
 vehicle over to a stop.
 
 Since the described behavior would require the vehicle to safely change lanes to
-reach the emergency lane—a task that is inherently complex—we have chosen to
+reach the emergency lane (a task that is inherently complex) we have chosen to
 adopt the following simplifying assumption:
 
 The vehicle’s cruise control system is designed to operate only in the slowest
@@ -291,7 +291,7 @@ However, as described in the paper
 [_Real-Time Eye Blink Detection using Facial Landmarks_](https://vision.fe.uni-lj.si/cvww2016/proceedings/papers/05.pdf),
 this process can be simplified by using a detector that provides both eye
 positions and **facial landmarks**. In this case, there is no need to train an
-additional classification algorithm—the information from the landmarks can
+additional classification algorithm: the information from the landmarks can
 directly indicate whether the eyes are open or closed, reducing the system's
 complexity.
 
